@@ -192,9 +192,9 @@ pub mod inner_types {
             cofactor::*, prime::*, Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul,
             ScalarMulOwned, UncompressedEncoding,
         },
-        multi_miller_loop, pairing, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2,
-        G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, MillerLoopResult, Scalar,
-        ScalarLe,
+        multi_miller_loop, pairing, Bls12, Bls12381G1 as InnerBls12381G1,
+        Bls12381G2 as InnerBls12381G2, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective,
+        Gt, MillerLoopResult, Scalar, ScalarLe,
     };
     #[cfg(feature = "blst")]
     pub use blstrs_plus::{
@@ -208,7 +208,7 @@ pub mod inner_types {
         },
         multi_miller_loop, pairing,
         pairing_lib::{Engine, MillerLoopResult, MultiMillerLoop, PairingCurveAffine},
-        Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine, G1Compressed,
-        G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt, Scalar,
+        Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
+        G1Compressed, G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt, Scalar,
     };
 }
