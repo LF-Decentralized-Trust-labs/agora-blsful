@@ -119,4 +119,59 @@ impl<C: BlsSignatureImpl> SignatureShare<C> {
             Self::ProofOfPossession(s) => s,
         }
     }
+
+    /// Convert a share byte sequence from version 1 to a signature share
+    /// that was output from converting to Vec<u8>
+    pub fn from_v1_inner_bytes(raw_bytes: &[u8]) -> BlsResult<Self> {
+        let mut repr = <C::Signature as GroupEncoding>::Repr::default();
+        if repr.as_ref().len() != raw_bytes.len() - 2 {
+            return Err(BlsError::InvalidInputs("invalid byte sequence".to_string()));
+        }
+
+        let identifier = IdentifierPrimeField(
+            <<C as Pairing>::Signature as Group>::Scalar::from(raw_bytes[1] as u64));
+        repr.as_mut().copy_from_slice(&raw_bytes[2..]);
+        let value = Option::<C::Signature>::from(C::Signature::from_bytes(&repr))
+            .ok_or(BlsError::InvalidSignature)?;
+        let inner = <C as Pairing>::SignatureShare::with_identifier_and_value(
+            identifier,
+            ValueGroup(value),
+        );
+        match raw_bytes[0] {
+            0 => Ok(Self::Basic(inner)),
+            1 => Ok(Self::MessageAugmentation(inner)),
+            2 => Ok(Self::ProofOfPossession(inner)),
+            _ => Err(BlsError::InvalidInputs("invalid byte sequence".to_string())),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bytes() {
+        let s = SignatureShare::<Bls12381G2Impl>::default();
+        let bytes = Vec::<u8>::from(&s);
+        let s2 = SignatureShare::<Bls12381G2Impl>::try_from(&bytes).unwrap();
+        assert_eq!(s, s2);
+
+        let mut bytes = [0u8; 98];
+        bytes[0] = 2;
+        bytes[2] = 192; // set the point at identity flag
+        let s2 = SignatureShare::from_v1_inner_bytes(&bytes).unwrap();
+        assert_eq!(s, s2);
+
+        let s = SignatureShare::<Bls12381G1Impl>::default();
+        let bytes = Vec::<u8>::from(&s);
+        let s2 = SignatureShare::<Bls12381G1Impl>::try_from(&bytes).unwrap();
+        assert_eq!(s, s2);
+
+        let mut bytes = [0u8; 50];
+        bytes[0] = 2;
+        bytes[2] = 192; // set the point at identity flag
+        let s2 = SignatureShare::from_v1_inner_bytes(&bytes).unwrap();
+        assert_eq!(s, s2);
+    }
 }
