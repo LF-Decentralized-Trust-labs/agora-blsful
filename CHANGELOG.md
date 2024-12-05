@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shares now use `vsss_rs::DefaultShare` instead of byte sequences
 - Old share format is deprecate that used byte sequences
 - Fix inner_types exports to not clash with other crates
+- Add conversion methods for Shares to the newer format.
 
 ## v2.5.3 - 2023-10-19
 

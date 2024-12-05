@@ -12,7 +12,8 @@ pub trait Pairing {
             Identifier = IdentifierPrimeField<<Self::PublicKey as Group>::Scalar>,
             Value = ValuePrimeField<<Self::PublicKey as Group>::Scalar>,
         > + core::fmt::Debug
-        + DeserializeOwned;
+        + DeserializeOwned
+        + Default;
     /// The public key group
     type PublicKey: Group + GroupEncoding + Default + Display + ConditionallySelectable;
     /// The public key share
@@ -24,7 +25,8 @@ pub trait Pairing {
         + core::fmt::Debug
         + ConditionallySelectable
         + Serialize
-        + DeserializeOwned;
+        + DeserializeOwned
+        + Default;
     /// The signature group
     type Signature: Group<Scalar = <Self::PublicKey as Group>::Scalar>
         + GroupEncoding
@@ -40,7 +42,8 @@ pub trait Pairing {
         + core::fmt::Debug
         + ConditionallySelectable
         + Serialize
-        + DeserializeOwned;
+        + DeserializeOwned
+        + Default;
     /// The target group from a pairing computation
     type PairingResult: Group + GroupEncoding + Default + Display + ConditionallySelectable;
     /// Compute the pairing based on supplied points

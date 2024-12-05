@@ -8,7 +8,7 @@ use subtle::Choice;
 /// to produce the completed key, or used for
 /// creating partial signatures which can be
 /// combined into a complete signature
-#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PublicKeyShare<C: BlsSignatureImpl>(pub <C as Pairing>::PublicKeyShare);
 
 impl<C: BlsSignatureImpl> Copy for PublicKeyShare<C> {}
@@ -68,5 +68,43 @@ impl<C: BlsSignatureImpl> PublicKeyShare<C> {
                 <C as BlsSignaturePop>::verify(pk.0, sig.0, msg)
             }
         }
+    }
+
+    /// Convert a share byte sequence from version 1 to a public key share
+    /// that was output from converting to Vec<u8>
+    pub fn from_v1_inner_bytes(raw_bytes: &[u8]) -> BlsResult<Self> {
+        let mut repr = <C::PublicKey as GroupEncoding>::Repr::default();
+        if repr.as_ref().len() != raw_bytes.len() - 1 {
+            return Err(BlsError::InvalidInputs("invalid byte sequence".to_string()));
+        }
+
+        let identifier = IdentifierPrimeField(
+            <<C as Pairing>::PublicKey as Group>::Scalar::from(raw_bytes[0] as u64));
+        repr.as_mut().copy_from_slice(&raw_bytes[1..]);
+        let value = Option::<C::PublicKey>::from(C::PublicKey::from_bytes(&repr))
+            .ok_or(BlsError::InvalidSignature)?;
+        let inner = <C as Pairing>::PublicKeyShare::with_identifier_and_value(
+            identifier,
+            ValueGroup(value),
+        );
+        Ok(Self(inner))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bytes() {
+        let pk = PublicKeyShare::<Bls12381G2Impl>::default();
+        let bytes = Vec::<u8>::from(&pk);
+        let pk2 = PublicKeyShare::try_from(&bytes).unwrap();
+        assert_eq!(pk, pk2);
+
+        let mut bytes = [0u8; 49];
+        bytes[1] = 192;
+        let pk2 = PublicKeyShare::<Bls12381G2Impl>::from_v1_inner_bytes(&bytes).unwrap();
+        assert_eq!(pk, pk2);
     }
 }

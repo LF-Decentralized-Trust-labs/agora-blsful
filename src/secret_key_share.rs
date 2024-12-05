@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// to produce the completed key, or used for
 /// creating partial signatures which can be
 /// combined into a complete signature
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SecretKeyShare<C: BlsSignatureImpl>(
     #[serde(serialize_with = "traits::secret_key_share::serialize::<C, _>")]
     #[serde(deserialize_with = "traits::secret_key_share::deserialize::<C, _>")]
@@ -72,17 +72,18 @@ impl<C: BlsSignatureImpl> SecretKeyShare<C> {
 
     /// Convert secret share from SecretKeyShare v1 to the newer v2 format
     pub fn from_v1_bytes(bytes: &[u8]) -> BlsResult<Self> {
-        #[derive(Deserialize)]
-        struct V1(#[serde(deserialize_with = "fixed_arr::BigArray::deserialize")] [u8; 33]);
-        let v1 = serde_bare::from_slice::<V1>(bytes)
-            .map_err(|e| BlsError::InvalidInputs(e.to_string()))?;
+        if bytes.len() != 33 {
+            return Err(BlsError::InvalidInputs(
+                "Invalid byte sequence length".to_string(),
+            ));
+        }
 
         let identifier = IdentifierPrimeField(<<C as Pairing>::PublicKey as Group>::Scalar::from(
-            v1.0[0] as u64,
+            bytes[0] as u64,
         ));
         let mut repr =
             <<<C as Pairing>::PublicKey as Group>::Scalar as PrimeField>::Repr::default();
-        repr.as_mut().copy_from_slice(&v1.0[1..]);
+        repr.as_mut().copy_from_slice(&bytes[1..]);
         let inner_value = Option::<<<C as Pairing>::PublicKey as Group>::Scalar>::from(
             <<C as Pairing>::PublicKey as Group>::Scalar::from_repr(repr),
         )
