@@ -263,7 +263,7 @@ impl<C: BlsSignatureImpl> ProofCommitmentChallenge<C> {
     /// Compute a random challenge from a CS-PRNG
     pub fn random(mut rng: impl RngCore + CryptoRng) -> Self {
         Self(<C as HashToScalar>::hash_to_scalar(
-            rng.gen::<[u8; SECRET_KEY_BYTES]>(),
+            rng.r#gen::<[u8; SECRET_KEY_BYTES]>(),
             KEYGEN_SALT,
         ))
     }

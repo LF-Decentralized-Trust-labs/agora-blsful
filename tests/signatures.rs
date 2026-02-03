@@ -144,17 +144,19 @@ fn aggegratesigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
     let sig3 = sk3.sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
 
     let asig = AggregateSignature::from_signatures(&[sig1, sig2, sig3]).unwrap();
-    assert!(asig
-        .verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])
-        .is_err());
+    assert!(
+        asig.verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])
+            .is_err()
+    );
 
     let sig1 = sk1.sign(SignatureSchemes::Basic, b"sig1").unwrap();
     let sig2 = sk2.sign(SignatureSchemes::Basic, b"sig2").unwrap();
     let sig3 = sk3.sign(SignatureSchemes::Basic, b"sig3").unwrap();
     let asig = AggregateSignature::from_signatures(&[sig1, sig2, sig3]).unwrap();
-    assert!(asig
-        .verify(&[(pk1, b"sig1"), (pk2, b"sig2"), (pk3, b"sig3")])
-        .is_ok());
+    assert!(
+        asig.verify(&[(pk1, b"sig1"), (pk2, b"sig2"), (pk3, b"sig3")])
+            .is_ok()
+    );
 
     let sig1 = sk1
         .sign(SignatureSchemes::MessageAugmentation, TEST_MSG)
@@ -167,7 +169,8 @@ fn aggegratesigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
         .unwrap();
 
     let asig = AggregateSignature::from_signatures(&[sig1, sig2, sig3]).unwrap();
-    assert!(asig
-        .verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])
-        .is_ok());
+    assert!(
+        asig.verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])
+            .is_ok()
+    );
 }

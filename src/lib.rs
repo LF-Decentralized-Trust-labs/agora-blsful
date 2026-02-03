@@ -210,7 +210,7 @@ impl InnerPointShareG1 {
             .map_err(|e| BlsError::InvalidInputs(e.to_string()))?;
         let identifier = Scalar::from(v1.0[0] as u64);
         let mut repr = [0u8; 48];
-        repr.as_mut().copy_from_slice(&v1.0[1..]);
+        repr.copy_from_slice(&v1.0[1..]);
         let value = Option::from(G1Projective::from_compressed(&repr)).ok_or_else(|| {
             BlsError::InvalidInputs("Invalid compressed G1Projective".to_string())
         })?;
@@ -346,7 +346,7 @@ impl InnerPointShareG2 {
             .map_err(|e| BlsError::InvalidInputs(e.to_string()))?;
         let identifier = Scalar::from(v1.0[0] as u64);
         let mut repr = [0u8; 96];
-        repr.as_mut().copy_from_slice(&v1.0[1..]);
+        repr.copy_from_slice(&v1.0[1..]);
         let value = Option::from(G2Projective::from_compressed(&repr)).ok_or_else(|| {
             BlsError::InvalidInputs("Invalid compressed G1Projective".to_string())
         })?;

@@ -47,7 +47,7 @@ impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for ElGamalCiphertext<
     }
 }
 
-impl<'a, 'b, C: BlsSignatureImpl> Add<&'b ElGamalCiphertext<C>> for &'a ElGamalCiphertext<C> {
+impl<'b, C: BlsSignatureImpl> Add<&'b ElGamalCiphertext<C>> for &ElGamalCiphertext<C> {
     type Output = ElGamalCiphertext<C>;
 
     fn add(self, rhs: &'b ElGamalCiphertext<C>) -> Self::Output {
@@ -63,7 +63,7 @@ impl<'a, C: BlsSignatureImpl> Add<&'a ElGamalCiphertext<C>> for ElGamalCiphertex
     }
 }
 
-impl<'a, C: BlsSignatureImpl> Add<ElGamalCiphertext<C>> for &'a ElGamalCiphertext<C> {
+impl<C: BlsSignatureImpl> Add<ElGamalCiphertext<C>> for &ElGamalCiphertext<C> {
     type Output = ElGamalCiphertext<C>;
 
     fn add(self, rhs: ElGamalCiphertext<C>) -> Self::Output {

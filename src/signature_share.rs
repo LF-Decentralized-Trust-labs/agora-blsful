@@ -128,8 +128,9 @@ impl<C: BlsSignatureImpl> SignatureShare<C> {
             return Err(BlsError::InvalidInputs("invalid byte sequence".to_string()));
         }
 
-        let identifier = IdentifierPrimeField(
-            <<C as Pairing>::Signature as Group>::Scalar::from(raw_bytes[1] as u64));
+        let identifier = IdentifierPrimeField(<<C as Pairing>::Signature as Group>::Scalar::from(
+            raw_bytes[1] as u64,
+        ));
         repr.as_mut().copy_from_slice(&raw_bytes[2..]);
         let value = Option::<C::Signature>::from(C::Signature::from_bytes(&repr))
             .ok_or(BlsError::InvalidSignature)?;

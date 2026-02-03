@@ -54,7 +54,7 @@ impl<T: BlsSignatureImpl> BlsSignature<T> {
     /// Compute a secret key from a CS-PRNG
     pub fn random_secret_key(mut rng: impl RngCore + CryptoRng) -> SecretKey<T> {
         SecretKey(<T as HashToScalar>::hash_to_scalar(
-            rng.gen::<[u8; SECRET_KEY_BYTES]>(),
+            rng.r#gen::<[u8; SECRET_KEY_BYTES]>(),
             KEYGEN_SALT,
         ))
     }
@@ -184,31 +184,31 @@ impl<'de> Deserialize<'de> for Bls12381 {
 pub mod inner_types {
     #[cfg(not(feature = "blst"))]
     pub use bls12_381_plus::{
+        Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
+        G1Projective, G2Affine, G2Prepared, G2Projective, Gt, MillerLoopResult, Scalar, ScalarLe,
         elliptic_curve::hash2curve::{
             ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd,
         },
         ff::{Field, FieldBits, FromUniformBytes, PrimeField, PrimeFieldBits},
         group::{
-            cofactor::*, prime::*, Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul,
-            ScalarMulOwned, UncompressedEncoding,
+            Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul, ScalarMulOwned,
+            UncompressedEncoding, cofactor::*, prime::*,
         },
-        multi_miller_loop, pairing, Bls12, Bls12381G1 as InnerBls12381G1,
-        Bls12381G2 as InnerBls12381G2, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective,
-        Gt, MillerLoopResult, Scalar, ScalarLe,
+        multi_miller_loop, pairing,
     };
     #[cfg(feature = "blst")]
     pub use blstrs_plus::{
+        Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
+        G1Compressed, G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt, Scalar,
         elliptic_curve::hash2curve::{
             ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd,
         },
         ff::{Field, FieldBits, FromUniformBytes, PrimeField, PrimeFieldBits},
         group::{
-            cofactor::*, prime::*, Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul,
-            ScalarMulOwned, UncompressedEncoding,
+            Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul, ScalarMulOwned,
+            UncompressedEncoding, cofactor::*, prime::*,
         },
         multi_miller_loop, pairing,
         pairing_lib::{Engine, MillerLoopResult, MultiMillerLoop, PairingCurveAffine},
-        Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
-        G1Compressed, G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt, Scalar,
     };
 }

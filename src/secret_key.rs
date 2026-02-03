@@ -1,4 +1,4 @@
-use crate::helpers::{get_crypto_rng, KEYGEN_SALT};
+use crate::helpers::{KEYGEN_SALT, get_crypto_rng};
 use crate::impls::inner_types::*;
 use crate::*;
 use core::fmt::{self, Formatter};
@@ -283,7 +283,7 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
     /// Compute a secret key from a CS-PRNG
     pub fn random(mut rng: impl RngCore + CryptoRng) -> Self {
         Self(<C as HashToScalar>::hash_to_scalar(
-            rng.gen::<[u8; SECRET_KEY_BYTES]>(),
+            rng.r#gen::<[u8; SECRET_KEY_BYTES]>(),
             KEYGEN_SALT,
         ))
     }

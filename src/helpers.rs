@@ -114,8 +114,8 @@ pub fn scalar_from_le_bytes<C: BlsSignatureImpl, const N: usize>(
 pub mod fixed_arr {
     use core::fmt::{self, Formatter};
     use serde::{
-        de::{self, SeqAccess, Visitor},
         Deserialize, Deserializer,
+        de::{self, SeqAccess, Visitor},
     };
 
     pub trait BigArray<'de>: Sized {

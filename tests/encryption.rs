@@ -47,10 +47,12 @@ fn sign_crypt_with_shares_works<C: BlsSignatureImpl>(#[case] _c: C) {
         .iter()
         .map(|s| ciphertext.create_decryption_share(s).unwrap())
         .collect::<Vec<_>>();
-    assert!(decryption_shares
-        .iter()
-        .zip(public_key_shares.iter())
-        .all(|(d, p)| d.verify(p, &ciphertext).is_ok()));
+    assert!(
+        decryption_shares
+            .iter()
+            .zip(public_key_shares.iter())
+            .all(|(d, p)| d.verify(p, &ciphertext).is_ok())
+    );
 
     let res = ciphertext.decrypt_with_shares(&decryption_shares);
     assert_eq!(res.is_some().unwrap_u8(), 1u8);

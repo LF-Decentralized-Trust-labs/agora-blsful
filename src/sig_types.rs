@@ -1,7 +1,7 @@
 use crate::BlsError;
 
 /// The BLS signature algorithm schemes
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(u8)]
 pub enum SignatureSchemes {
     /// The basic signature algorithm scheme
@@ -9,13 +9,8 @@ pub enum SignatureSchemes {
     /// The message augmentation signature algorithm scheme
     MessageAugmentation = 1,
     /// The proof of possession signature algorithm scheme
+    #[default]
     ProofOfPossession = 2,
-}
-
-impl Default for SignatureSchemes {
-    fn default() -> Self {
-        Self::ProofOfPossession
-    }
 }
 
 impl From<u8> for SignatureSchemes {

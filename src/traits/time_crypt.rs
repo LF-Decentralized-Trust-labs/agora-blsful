@@ -5,8 +5,8 @@ use crate::*;
 use rand::Rng;
 use sha2::Sha256;
 use sha3::{
-    digest::{Digest, ExtendableOutput, FixedOutput, Update, XofReader},
     Shake128,
+    digest::{Digest, ExtendableOutput, FixedOutput, Update, XofReader},
 };
 use subtle::CtOption;
 
@@ -32,7 +32,7 @@ pub trait BlsTimeCrypt:
         }
 
         // \alpha ← Zq
-        let alpha = Self::hash_to_scalar(get_crypto_rng().gen::<[u8; 32]>(), SALT);
+        let alpha = Self::hash_to_scalar(get_crypto_rng().r#gen::<[u8; 32]>(), SALT);
         debug_assert_eq!(alpha.is_zero().unwrap_u8(), 0u8);
         let msg_dst = Sha256::digest(message);
         // r = HZq(\alpha  || M)

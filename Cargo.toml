@@ -8,14 +8,14 @@ categories = [
 ]
 description = """BLS signature implementation according to the IETF spec on the BLS12-381 curve."""
 documentation = "https://docs.rs/blsful"
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/mikelodder7/blsful"
 keywords = ["crypto", "signature", "signing", "bls"]
 license = "MIT OR Apache-2.0"
 name = "blsful"
 readme = "README.md"
 repository = "https://github.com/mikelodder7/blsful"
-version = "3.0.0"
+version = "3.1.0"
 
 [features]
 default = ["blst"]

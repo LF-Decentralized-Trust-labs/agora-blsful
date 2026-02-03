@@ -78,8 +78,9 @@ impl<C: BlsSignatureImpl> PublicKeyShare<C> {
             return Err(BlsError::InvalidInputs("invalid byte sequence".to_string()));
         }
 
-        let identifier = IdentifierPrimeField(
-            <<C as Pairing>::PublicKey as Group>::Scalar::from(raw_bytes[0] as u64));
+        let identifier = IdentifierPrimeField(<<C as Pairing>::PublicKey as Group>::Scalar::from(
+            raw_bytes[0] as u64,
+        ));
         repr.as_mut().copy_from_slice(&raw_bytes[1..]);
         let value = Option::<C::PublicKey>::from(C::PublicKey::from_bytes(&repr))
             .ok_or(BlsError::InvalidSignature)?;

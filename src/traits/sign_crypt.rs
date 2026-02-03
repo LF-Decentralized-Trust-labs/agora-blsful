@@ -4,8 +4,8 @@ use crate::impls::inner_types::*;
 use crate::{BlsError, BlsResult};
 use rand::Rng;
 use sha3::{
-    digest::{ExtendableOutput, Update, XofReader},
     Shake128,
+    digest::{ExtendableOutput, Update, XofReader},
 };
 use subtle::{Choice, ConditionallySelectable, CtOption};
 use vsss_rs::*;
@@ -40,7 +40,7 @@ pub trait BlsSignCrypt:
         let message = message.as_ref();
 
         // r ← Zq
-        let r = Self::hash_to_scalar(get_crypto_rng().gen::<[u8; 32]>(), SALT);
+        let r = Self::hash_to_scalar(get_crypto_rng().r#gen::<[u8; 32]>(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
         // U = P^r
         let u = Self::PublicKey::generator() * r;
