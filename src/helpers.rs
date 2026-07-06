@@ -1,5 +1,5 @@
 use crate::impls::inner_types::*;
-use crate::{BlsSignatureImpl, Pairing};
+use crate::{Bls12381, BlsSignatureImpl, Pairing};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
 use shake::{ExtendableOutput, Shake128, Update, XofReader};
@@ -61,31 +61,39 @@ pub fn decode_message_with_len(encoded: &[u8]) -> Option<Vec<u8>> {
     (len <= encoded.len() - overhead).then(|| encoded[overhead..overhead + len].to_vec())
 }
 
+pub fn typed_bytes(t: Bls12381, value: impl AsRef<[u8]>) -> Vec<u8> {
+    let value = value.as_ref();
+    let mut output = Vec::with_capacity(value.len() + 1);
+    output.push(u8::from(t));
+    output.extend_from_slice(value);
+    output
+}
+
 pub fn get_crypto_rng() -> ChaCha20Rng {
     ChaCha20Rng::from_rng(&mut rand::rng())
 }
 
 pub fn pairing_g1_g2(points: &[(G1Projective, G2Projective)]) -> Gt {
-    let t = points
-        .iter()
-        .map(|(p1, p2)| (p1.to_affine(), G2Prepared::from(p2.to_affine())))
-        .collect::<Vec<(G1Affine, G2Prepared)>>();
-    let ref_t = t
-        .iter()
-        .map(|(p1, p2)| (p1, p2))
-        .collect::<Vec<(&G1Affine, &G2Prepared)>>();
+    let mut t = Vec::with_capacity(points.len());
+    for (p1, p2) in points {
+        t.push((p1.to_affine(), G2Prepared::from(p2.to_affine())));
+    }
+    let mut ref_t = Vec::with_capacity(t.len());
+    for (p1, p2) in &t {
+        ref_t.push((p1, p2));
+    }
     multi_miller_loop(ref_t.as_slice()).final_exponentiation()
 }
 
 pub fn pairing_g2_g1(points: &[(G2Projective, G1Projective)]) -> Gt {
-    let t = points
-        .iter()
-        .map(|(p1, p2)| (p2.to_affine(), G2Prepared::from(p1.to_affine())))
-        .collect::<Vec<(G1Affine, G2Prepared)>>();
-    let ref_t = t
-        .iter()
-        .map(|(p1, p2)| (p1, p2))
-        .collect::<Vec<(&G1Affine, &G2Prepared)>>();
+    let mut t = Vec::with_capacity(points.len());
+    for (p1, p2) in points {
+        t.push((p2.to_affine(), G2Prepared::from(p1.to_affine())));
+    }
+    let mut ref_t = Vec::with_capacity(t.len());
+    for (p1, p2) in &t {
+        ref_t.push((p1, p2));
+    }
     multi_miller_loop(ref_t.as_slice()).final_exponentiation()
 }
 

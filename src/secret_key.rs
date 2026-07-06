@@ -83,12 +83,11 @@ impl Default for SecretKeyEnum {
 
 impl From<&SecretKeyEnum> for Vec<u8> {
     fn from(value: &SecretKeyEnum) -> Self {
-        let (tt, mut output) = match value {
+        let (tt, output) = match value {
             SecretKeyEnum::G1(sk) => (Bls12381::G1, Vec::from(sk)),
             SecretKeyEnum::G2(sk) => (Bls12381::G2, Vec::from(sk)),
         };
-        output.insert(0, tt as u8);
-        output
+        typed_bytes(tt, output)
     }
 }
 
@@ -96,14 +95,14 @@ impl TryFrom<&[u8]> for SecretKeyEnum {
     type Error = BlsError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let ee = Bls12381::try_from(value[0])?;
+        let (ee, value) = Bls12381::split_typed_bytes(value)?;
         match ee {
             Bls12381::G1 => {
-                let sk = SecretKey::<Bls12381G1Impl>::try_from(&value[1..])?;
+                let sk = SecretKey::<Bls12381G1Impl>::try_from(value)?;
                 Ok(SecretKeyEnum::G1(sk))
             }
             Bls12381::G2 => {
-                let sk = SecretKey::<Bls12381G2Impl>::try_from(&value[1..])?;
+                let sk = SecretKey::<Bls12381G2Impl>::try_from(value)?;
                 Ok(SecretKeyEnum::G2(sk))
             }
         }
@@ -113,6 +112,14 @@ impl TryFrom<&[u8]> for SecretKeyEnum {
 impl_from_derivatives!(SecretKeyEnum);
 
 impl SecretKeyEnum {
+    /// Return the concrete BLS12-381 signature group for this secret key.
+    pub fn curve(&self) -> Bls12381 {
+        match self {
+            Self::G1(_) => Bls12381::G1,
+            Self::G2(_) => Bls12381::G2,
+        }
+    }
+
     /// Create a new random secret key
     pub fn new(t: Bls12381) -> Self {
         match t {
@@ -139,31 +146,29 @@ impl SecretKeyEnum {
 
     /// Get the big-endian byte representation of this key
     pub fn to_be_bytes(&self) -> Vec<u8> {
-        let (t, mut output) = match self {
-            SecretKeyEnum::G1(sk) => (Bls12381::G1, Vec::from(sk.to_be_bytes())),
-            SecretKeyEnum::G2(sk) => (Bls12381::G2, Vec::from(sk.to_be_bytes())),
+        let (t, output) = match self {
+            SecretKeyEnum::G1(sk) => (Bls12381::G1, sk.to_be_bytes()),
+            SecretKeyEnum::G2(sk) => (Bls12381::G2, sk.to_be_bytes()),
         };
-        output.insert(0, t as u8);
-        output
+        typed_bytes(t, output)
     }
 
     /// Get the little-endian byte representation of this key
     pub fn to_le_bytes(&self) -> Vec<u8> {
-        let (t, mut output) = match self {
-            SecretKeyEnum::G1(sk) => (Bls12381::G1, Vec::from(sk.to_le_bytes())),
-            SecretKeyEnum::G2(sk) => (Bls12381::G2, Vec::from(sk.to_le_bytes())),
+        let (t, output) = match self {
+            SecretKeyEnum::G1(sk) => (Bls12381::G1, sk.to_le_bytes()),
+            SecretKeyEnum::G2(sk) => (Bls12381::G2, sk.to_le_bytes()),
         };
-        output.insert(0, t as u8);
-        output
+        typed_bytes(t, output)
     }
 
     /// Convert a big-endian representation of the secret key.
     pub fn from_be_bytes(bytes: &[u8]) -> CtOption<Self> {
-        let t = match Bls12381::try_from(bytes[0]) {
-            Ok(t) => t,
+        let (t, bytes) = match Bls12381::split_typed_bytes(bytes) {
+            Ok(parts) => parts,
             Err(_) => return CtOption::new(Self::default(), Choice::from(0u8)),
         };
-        match (&bytes[1..]).try_into() {
+        match bytes.try_into() {
             Ok(sk) => match t {
                 Bls12381::G1 => {
                     let ct_sk = SecretKey::from_be_bytes(&sk);
@@ -192,11 +197,11 @@ impl SecretKeyEnum {
 
     /// Convert a little-endian representation of the secret key.
     pub fn from_le_bytes(bytes: &[u8]) -> CtOption<Self> {
-        let t = match Bls12381::try_from(bytes[0]) {
-            Ok(t) => t,
+        let (t, bytes) = match Bls12381::split_typed_bytes(bytes) {
+            Ok(parts) => parts,
             Err(_) => return CtOption::new(Self::default(), Choice::from(0u8)),
         };
-        match (&bytes[1..]).try_into() {
+        match bytes.try_into() {
             Ok(sk) => match t {
                 Bls12381::G1 => {
                     let ct_sk = SecretKey::from_le_bytes(&sk);
@@ -220,6 +225,30 @@ impl SecretKeyEnum {
                 }
             },
             Err(_) => CtOption::new(Self::default(), Choice::from(0u8)),
+        }
+    }
+
+    /// Compute the public key for this secret key.
+    pub fn public_key(&self) -> PublicKeyEnum {
+        match self {
+            SecretKeyEnum::G1(sk) => PublicKeyEnum::G1(sk.public_key()),
+            SecretKeyEnum::G2(sk) => PublicKeyEnum::G2(sk.public_key()),
+        }
+    }
+
+    /// Create a proof of possession for this secret key.
+    pub fn proof_of_possession(&self) -> BlsResult<ProofOfPossessionEnum> {
+        match self {
+            SecretKeyEnum::G1(sk) => sk.proof_of_possession().map(ProofOfPossessionEnum::G1),
+            SecretKeyEnum::G2(sk) => sk.proof_of_possession().map(ProofOfPossessionEnum::G2),
+        }
+    }
+
+    /// Sign a message with this secret key using the specified scheme.
+    pub fn sign(&self, scheme: SignatureSchemes, msg: &[u8]) -> BlsResult<SignatureEnum> {
+        match self {
+            SecretKeyEnum::G1(sk) => sk.sign(scheme, msg).map(SignatureEnum::G1),
+            SecretKeyEnum::G2(sk) => sk.sign(scheme, msg).map(SignatureEnum::G2),
         }
     }
 }

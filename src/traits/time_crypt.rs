@@ -33,13 +33,10 @@ pub trait BlsTimeCrypt:
         debug_assert_eq!(alpha.is_zero().unwrap_u8(), 0u8);
         let msg_dst = Sha256::digest(message);
         // r = HZq(\alpha  || M)
-        let r_input: Vec<u8> = alpha
-            .to_repr()
-            .as_ref()
-            .iter()
-            .copied()
-            .chain(msg_dst.iter().copied())
-            .collect();
+        let alpha_bytes = alpha.to_repr();
+        let mut r_input = Vec::with_capacity(alpha_bytes.as_ref().len() + msg_dst.len());
+        r_input.extend_from_slice(alpha_bytes.as_ref());
+        r_input.extend_from_slice(&msg_dst);
         let r = Self::hash_to_scalar(r_input.as_slice(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
 
@@ -93,11 +90,9 @@ pub trait BlsTimeCrypt:
         }
 
         let msg_dst = Sha256::digest(&message);
-        let r_input: Vec<u8> = alpha
-            .iter()
-            .copied()
-            .chain(msg_dst.iter().copied())
-            .collect();
+        let mut r_input = Vec::with_capacity(alpha.len() + msg_dst.len());
+        r_input.extend_from_slice(&alpha);
+        r_input.extend_from_slice(&msg_dst);
         let r = Self::hash_to_scalar(r_input.as_slice(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
         CtOption::new(

@@ -1,6 +1,68 @@
 use crate::*;
 use subtle::{Choice, ConditionallySelectable};
 
+/// A proof of possession for either supported BLS12-381 signature group.
+///
+/// This is the dynamic counterpart to [`ProofOfPossession<C>`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ProofOfPossessionEnum {
+    /// A proof for signatures in G1 and public keys in G2.
+    G1(ProofOfPossession<Bls12381G1Impl>),
+    /// A proof for signatures in G2 and public keys in G1.
+    G2(ProofOfPossession<Bls12381G2Impl>),
+}
+
+impl Default for ProofOfPossessionEnum {
+    fn default() -> Self {
+        Self::G1(ProofOfPossession::default())
+    }
+}
+
+impl From<&ProofOfPossessionEnum> for Vec<u8> {
+    fn from(value: &ProofOfPossessionEnum) -> Self {
+        let (t, output) = match value {
+            ProofOfPossessionEnum::G1(pop) => (Bls12381::G1, Vec::from(pop)),
+            ProofOfPossessionEnum::G2(pop) => (Bls12381::G2, Vec::from(pop)),
+        };
+        typed_bytes(t, output)
+    }
+}
+
+impl TryFrom<&[u8]> for ProofOfPossessionEnum {
+    type Error = BlsError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let (t, value) = Bls12381::split_typed_bytes(value)?;
+        match t {
+            Bls12381::G1 => ProofOfPossession::<Bls12381G1Impl>::try_from(value).map(Self::G1),
+            Bls12381::G2 => ProofOfPossession::<Bls12381G2Impl>::try_from(value).map(Self::G2),
+        }
+    }
+}
+
+impl_from_derivatives!(ProofOfPossessionEnum);
+
+impl ProofOfPossessionEnum {
+    /// Return the concrete BLS12-381 signature group for this proof.
+    pub fn curve(&self) -> Bls12381 {
+        match self {
+            Self::G1(_) => Bls12381::G1,
+            Self::G2(_) => Bls12381::G2,
+        }
+    }
+
+    /// Verify this proof of possession with a matching dynamic public key.
+    pub fn verify(&self, pk: PublicKeyEnum) -> BlsResult<()> {
+        match (self, pk) {
+            (Self::G1(pop), PublicKeyEnum::G1(pk)) => pop.verify(pk),
+            (Self::G2(pop), PublicKeyEnum::G2(pk)) => pop.verify(pk),
+            _ => Err(BlsError::InvalidInputs(
+                "proof and public key curve variants differ".to_string(),
+            )),
+        }
+    }
+}
+
 /// A proof of possession of the secret key
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ProofOfPossession<C: BlsSignatureImpl>(

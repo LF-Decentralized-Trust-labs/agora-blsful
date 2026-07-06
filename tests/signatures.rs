@@ -1,6 +1,7 @@
 use blsful::{
-    AggregateSignature, Bls12381G1, Bls12381G1Impl, Bls12381G2, Bls12381G2Impl, BlsSignatureImpl,
-    MultiPublicKey, MultiSignature, PublicKey, SecretKey, Signature, SignatureSchemes,
+    AggregateSignature, Bls12381, Bls12381G1, Bls12381G1Impl, Bls12381G2, Bls12381G2Impl,
+    BlsSignatureImpl, MultiPublicKey, MultiSignature, PublicKey, PublicKeyEnum, SecretKey,
+    SecretKeyEnum, Signature, SignatureEnum, SignatureSchemes,
 };
 use rstest::*;
 
@@ -51,6 +52,38 @@ fn proof_of_possession_works() {
     let sk2 = Bls12381G2::new_secret_key();
     let pk2 = sk2.public_key();
     assert!(pop.verify(pk2).is_err());
+}
+
+#[test]
+fn dynamic_facade_works() {
+    for curve in [Bls12381::G1, Bls12381::G2] {
+        let sk = SecretKeyEnum::from_hash(curve, TEST_MSG);
+        assert_eq!(sk.curve(), curve);
+
+        let pk = sk.public_key();
+        assert_eq!(pk.curve(), curve);
+
+        let sig = sk.sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
+        assert_eq!(sig.curve(), curve);
+        assert!(sig.verify(&pk, TEST_MSG).is_ok());
+        assert!(sig.verify(&pk, BAD_MSG).is_err());
+
+        let pop = sk.proof_of_possession().unwrap();
+        assert_eq!(pop.curve(), curve);
+        assert!(pop.verify(pk).is_ok());
+
+        let sk_bytes = sk.to_be_bytes();
+        let sk2 = SecretKeyEnum::from_be_bytes(&sk_bytes).unwrap();
+        assert_eq!(sk, sk2);
+
+        let pk_bytes = Vec::from(&pk);
+        let pk2 = PublicKeyEnum::try_from(pk_bytes.as_slice()).unwrap();
+        assert_eq!(pk, pk2);
+
+        let sig_bytes = Vec::from(&sig);
+        let sig2 = SignatureEnum::try_from(sig_bytes.as_slice()).unwrap();
+        assert_eq!(sig, sig2);
+    }
 }
 
 #[rstest]

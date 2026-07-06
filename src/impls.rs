@@ -178,6 +178,15 @@ impl<'de> Deserialize<'de> for Bls12381 {
     }
 }
 
+impl Bls12381 {
+    pub(crate) fn split_typed_bytes(value: &[u8]) -> BlsResult<(Self, &[u8])> {
+        let (&t, value) = value
+            .split_first()
+            .ok_or_else(|| BlsError::DeserializationError("Missing BLS12381 type".to_string()))?;
+        Self::try_from(t).map(|t| (t, value))
+    }
+}
+
 /// The inner representation types
 pub mod inner_types {
     #[cfg(not(feature = "blst"))]

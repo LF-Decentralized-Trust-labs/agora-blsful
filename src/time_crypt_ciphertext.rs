@@ -1,6 +1,40 @@
 use crate::*;
 use subtle::CtOption;
 
+/// Time-lock ciphertext for either supported BLS12-381 signature group.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum TimeCryptCiphertextEnum {
+    /// A ciphertext using signatures in G1 and public keys in G2.
+    G1(TimeCryptCiphertext<Bls12381G1Impl>),
+    /// A ciphertext using signatures in G2 and public keys in G1.
+    G2(TimeCryptCiphertext<Bls12381G2Impl>),
+}
+
+impl Default for TimeCryptCiphertextEnum {
+    fn default() -> Self {
+        Self::G1(TimeCryptCiphertext::default())
+    }
+}
+
+impl TimeCryptCiphertextEnum {
+    /// Return the concrete BLS12-381 signature group for this ciphertext.
+    pub fn curve(&self) -> Bls12381 {
+        match self {
+            Self::G1(_) => Bls12381::G1,
+            Self::G2(_) => Bls12381::G2,
+        }
+    }
+
+    /// Decrypt the time-lock ciphertext with a matching dynamic signature.
+    pub fn decrypt(&self, sig: &SignatureEnum) -> CtOption<Vec<u8>> {
+        match (self, sig) {
+            (Self::G1(ciphertext), SignatureEnum::G1(sig)) => ciphertext.decrypt(sig),
+            (Self::G2(ciphertext), SignatureEnum::G2(sig)) => ciphertext.decrypt(sig),
+            _ => CtOption::new(vec![], 0u8.into()),
+        }
+    }
+}
+
 /// The ciphertext output from time lock encryption
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TimeCryptCiphertext<C: BlsSignatureImpl> {

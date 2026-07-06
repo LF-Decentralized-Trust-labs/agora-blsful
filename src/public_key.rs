@@ -1,6 +1,87 @@
 use crate::impls::inner_types::*;
 use crate::*;
 
+/// A public key for either supported BLS12-381 signature group.
+///
+/// This is the dynamic counterpart to [`PublicKey<C>`]. Use it when the G1/G2
+/// choice is only known at runtime.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PublicKeyEnum {
+    /// A public key for signatures in G1 and public keys in G2.
+    G1(PublicKey<Bls12381G1Impl>),
+    /// A public key for signatures in G2 and public keys in G1.
+    G2(PublicKey<Bls12381G2Impl>),
+}
+
+impl Default for PublicKeyEnum {
+    fn default() -> Self {
+        Self::G1(PublicKey::default())
+    }
+}
+
+impl From<&PublicKeyEnum> for Vec<u8> {
+    fn from(value: &PublicKeyEnum) -> Self {
+        let (t, output) = match value {
+            PublicKeyEnum::G1(pk) => (Bls12381::G1, Vec::from(pk)),
+            PublicKeyEnum::G2(pk) => (Bls12381::G2, Vec::from(pk)),
+        };
+        typed_bytes(t, output)
+    }
+}
+
+impl TryFrom<&[u8]> for PublicKeyEnum {
+    type Error = BlsError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let (t, value) = Bls12381::split_typed_bytes(value)?;
+        match t {
+            Bls12381::G1 => PublicKey::<Bls12381G1Impl>::try_from(value).map(PublicKeyEnum::G1),
+            Bls12381::G2 => PublicKey::<Bls12381G2Impl>::try_from(value).map(PublicKeyEnum::G2),
+        }
+    }
+}
+
+impl_from_derivatives!(PublicKeyEnum);
+
+impl PublicKeyEnum {
+    /// Return the concrete BLS12-381 signature group for this public key.
+    pub fn curve(&self) -> Bls12381 {
+        match self {
+            Self::G1(_) => Bls12381::G1,
+            Self::G2(_) => Bls12381::G2,
+        }
+    }
+
+    /// Encrypt a message using signcryption.
+    pub fn sign_crypt<B: AsRef<[u8]>>(
+        &self,
+        scheme: SignatureSchemes,
+        msg: B,
+    ) -> SignCryptCiphertextEnum {
+        match self {
+            Self::G1(pk) => SignCryptCiphertextEnum::G1(pk.sign_crypt(scheme, msg)),
+            Self::G2(pk) => SignCryptCiphertextEnum::G2(pk.sign_crypt(scheme, msg)),
+        }
+    }
+
+    /// Encrypt a message using time lock encryption.
+    pub fn encrypt_time_lock<B: AsRef<[u8]>, D: AsRef<[u8]>>(
+        &self,
+        scheme: SignatureSchemes,
+        msg: B,
+        id: D,
+    ) -> BlsResult<TimeCryptCiphertextEnum> {
+        match self {
+            Self::G1(pk) => pk
+                .encrypt_time_lock(scheme, msg, id)
+                .map(TimeCryptCiphertextEnum::G1),
+            Self::G2(pk) => pk
+                .encrypt_time_lock(scheme, msg, id)
+                .map(TimeCryptCiphertextEnum::G2),
+        }
+    }
+}
+
 /// A BLS public key
 #[derive(Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PublicKey<C: BlsSignatureImpl>(

@@ -1,6 +1,48 @@
 use crate::*;
 use subtle::CtOption;
 
+/// Signcryption ciphertext for either supported BLS12-381 signature group.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum SignCryptCiphertextEnum {
+    /// A ciphertext using signatures in G1 and public keys in G2.
+    G1(SignCryptCiphertext<Bls12381G1Impl>),
+    /// A ciphertext using signatures in G2 and public keys in G1.
+    G2(SignCryptCiphertext<Bls12381G2Impl>),
+}
+
+impl Default for SignCryptCiphertextEnum {
+    fn default() -> Self {
+        Self::G1(SignCryptCiphertext::default())
+    }
+}
+
+impl SignCryptCiphertextEnum {
+    /// Return the concrete BLS12-381 signature group for this ciphertext.
+    pub fn curve(&self) -> Bls12381 {
+        match self {
+            Self::G1(_) => Bls12381::G1,
+            Self::G2(_) => Bls12381::G2,
+        }
+    }
+
+    /// Decrypt the signcrypt ciphertext with a matching dynamic secret key.
+    pub fn decrypt(&self, sk: &SecretKeyEnum) -> CtOption<Vec<u8>> {
+        match (self, sk) {
+            (Self::G1(ciphertext), SecretKeyEnum::G1(sk)) => ciphertext.decrypt(sk),
+            (Self::G2(ciphertext), SecretKeyEnum::G2(sk)) => ciphertext.decrypt(sk),
+            _ => CtOption::new(vec![], 0u8.into()),
+        }
+    }
+
+    /// Check if the ciphertext is internally valid.
+    pub fn is_valid(&self) -> Choice {
+        match self {
+            Self::G1(ciphertext) => ciphertext.is_valid(),
+            Self::G2(ciphertext) => ciphertext.is_valid(),
+        }
+    }
+}
+
 /// The ciphertext output from sign crypt encryption
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SignCryptCiphertext<C: BlsSignatureImpl> {

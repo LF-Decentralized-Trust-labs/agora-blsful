@@ -1,6 +1,78 @@
 use crate::*;
 use subtle::ConditionallySelectable;
 
+/// A BLS signature for either supported BLS12-381 signature group.
+///
+/// This is the dynamic counterpart to [`Signature<C>`]. Use it with
+/// [`PublicKeyEnum`] when the G1/G2 choice is only known at runtime.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum SignatureEnum {
+    /// A signature in G1 with public keys in G2.
+    G1(Signature<Bls12381G1Impl>),
+    /// A signature in G2 with public keys in G1.
+    G2(Signature<Bls12381G2Impl>),
+}
+
+impl Default for SignatureEnum {
+    fn default() -> Self {
+        Self::G1(Signature::default())
+    }
+}
+
+impl From<&SignatureEnum> for Vec<u8> {
+    fn from(value: &SignatureEnum) -> Self {
+        let (t, output) = match value {
+            SignatureEnum::G1(sig) => (Bls12381::G1, Vec::from(sig)),
+            SignatureEnum::G2(sig) => (Bls12381::G2, Vec::from(sig)),
+        };
+        typed_bytes(t, output)
+    }
+}
+
+impl TryFrom<&[u8]> for SignatureEnum {
+    type Error = BlsError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        let (t, value) = Bls12381::split_typed_bytes(value)?;
+        match t {
+            Bls12381::G1 => Signature::<Bls12381G1Impl>::try_from(value).map(SignatureEnum::G1),
+            Bls12381::G2 => Signature::<Bls12381G2Impl>::try_from(value).map(SignatureEnum::G2),
+        }
+    }
+}
+
+impl_from_derivatives!(SignatureEnum);
+
+impl SignatureEnum {
+    /// Return the concrete BLS12-381 signature group for this signature.
+    pub fn curve(&self) -> Bls12381 {
+        match self {
+            Self::G1(_) => Bls12381::G1,
+            Self::G2(_) => Bls12381::G2,
+        }
+    }
+
+    /// Verify the signature using a public key from the same curve variant.
+    pub fn verify<B: AsRef<[u8]>>(&self, pk: &PublicKeyEnum, msg: B) -> BlsResult<()> {
+        match (self, pk) {
+            (Self::G1(sig), PublicKeyEnum::G1(pk)) => sig.verify(pk, msg),
+            (Self::G2(sig), PublicKeyEnum::G2(pk)) => sig.verify(pk, msg),
+            _ => Err(BlsError::InvalidInputs(
+                "signature and public key curve variants differ".to_string(),
+            )),
+        }
+    }
+
+    /// Determine if two signatures use the same signature scheme and curve variant.
+    pub fn same_scheme(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::G1(a), Self::G1(b)) => a.same_scheme(b),
+            (Self::G2(a), Self::G2(b)) => a.same_scheme(b),
+            _ => false,
+        }
+    }
+}
+
 /// A BLS signature wrapped in the appropriate scheme used to generate it
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Signature<C: BlsSignatureImpl> {
