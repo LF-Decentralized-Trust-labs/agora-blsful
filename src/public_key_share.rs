@@ -71,7 +71,7 @@ impl<C: BlsSignatureImpl> PublicKeyShare<C> {
     }
 
     /// Convert a share byte sequence from version 1 to a public key share
-    /// that was output from converting to Vec<u8>
+    /// that was output from converting to `Vec<u8>`
     pub fn from_v1_inner_bytes(raw_bytes: &[u8]) -> BlsResult<Self> {
         let mut repr = <C::PublicKey as GroupEncoding>::Repr::default();
         if repr.as_ref().len() != raw_bytes.len() - 1 {

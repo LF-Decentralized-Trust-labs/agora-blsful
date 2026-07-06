@@ -30,52 +30,11 @@ impl<C: BlsSignatureImpl> Default for AggregateSignature<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> Display for AggregateSignature<C> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Basic(s) => write!(f, "Basic({})", s),
-            Self::MessageAugmentation(s) => write!(f, "MessageAugmentation({})", s),
-            Self::ProofOfPossession(s) => write!(f, "ProofOfPossession({})", s),
-        }
-    }
-}
-
-impl<C: BlsSignatureImpl> fmt::Debug for AggregateSignature<C> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Basic(s) => write!(f, "Basic({:?})", s),
-            Self::MessageAugmentation(s) => write!(f, "MessageAugmentation({:?})", s),
-            Self::ProofOfPossession(s) => write!(f, "ProofOfPossession({:?})", s),
-        }
-    }
-}
-
-impl<C: BlsSignatureImpl> Copy for AggregateSignature<C> {}
-
-impl<C: BlsSignatureImpl> Clone for AggregateSignature<C> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for AggregateSignature<C> {
-    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
-        match (a, b) {
-            (Self::Basic(a), Self::Basic(b)) => {
-                Self::Basic(<C as Pairing>::Signature::conditional_select(a, b, choice))
-            }
-            (Self::MessageAugmentation(a), Self::MessageAugmentation(b)) => {
-                Self::MessageAugmentation(<C as Pairing>::Signature::conditional_select(
-                    a, b, choice,
-                ))
-            }
-            (Self::ProofOfPossession(a), Self::ProofOfPossession(b)) => {
-                Self::ProofOfPossession(<C as Pairing>::Signature::conditional_select(a, b, choice))
-            }
-            _ => panic!("Signature::conditional_select: mismatched variants"),
-        }
-    }
-}
+impl_signature_enum_traits!(
+    AggregateSignature,
+    <C as Pairing>::Signature,
+    "Signature::conditional_select: mismatched variants"
+);
 
 impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for AggregateSignature<C> {
     type Error = BlsError;

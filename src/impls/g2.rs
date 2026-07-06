@@ -38,69 +38,7 @@ impl Pairing for Bls12381G2Impl {
     }
 }
 
-impl BlsSerde for Bls12381G2Impl {
-    fn serialize_scalar<S: Serializer>(scalar: &Scalar, serializer: S) -> Result<S::Ok, S::Error> {
-        <Scalar as Serialize>::serialize(scalar, serializer)
-    }
-
-    fn serialize_scalar_share<S: Serializer>(
-        share: &Self::SecretKeyShare,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        share.serialize(serializer)
-    }
-
-    fn serialize_signature<S: Serializer>(
-        signature: &Self::Signature,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        signature.serialize(serializer)
-    }
-
-    fn serialize_public_key<S: Serializer>(
-        public_key: &Self::PublicKey,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        public_key.serialize(serializer)
-    }
-
-    fn serialize_public_key_share<S: Serializer>(
-        public_key_share: &Self::PublicKeyShare,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        public_key_share.serialize(serializer)
-    }
-
-    fn deserialize_scalar<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<<Self::PublicKey as Group>::Scalar, D::Error> {
-        <Scalar as Deserialize<'de>>::deserialize(deserializer)
-    }
-
-    fn deserialize_scalar_share<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Self::SecretKeyShare, D::Error> {
-        Self::SecretKeyShare::deserialize(deserializer)
-    }
-
-    fn deserialize_signature<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Self::Signature, D::Error> {
-        Self::Signature::deserialize(deserializer)
-    }
-
-    fn deserialize_public_key<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Self::PublicKey, D::Error> {
-        Self::PublicKey::deserialize(deserializer)
-    }
-
-    fn deserialize_public_key_share<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Self::PublicKeyShare, D::Error> {
-        Self::PublicKeyShare::deserialize(deserializer)
-    }
-}
+impl_bls_serde!(Bls12381G2Impl);
 
 impl BlsSignatureCore for Bls12381G2Impl {}
 

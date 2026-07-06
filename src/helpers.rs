@@ -73,77 +73,77 @@ pub fn get_crypto_rng() -> ChaCha20Rng {
     ChaCha20Rng::from_rng(&mut rand::rng())
 }
 
-pub fn pairing_g1_g2(points: &[(G1Projective, G2Projective)]) -> Gt {
-    let mut t = Vec::with_capacity(points.len());
-    for (p1, p2) in points {
-        t.push((p1.to_affine(), G2Prepared::from(p2.to_affine())));
-    }
-    let mut ref_t = Vec::with_capacity(t.len());
-    for (p1, p2) in &t {
-        ref_t.push((p1, p2));
-    }
+/// Compute the pairing of `(G1, G2)` point pairs where the first element of
+/// each pair lives in G1 and the second in G2.
+fn pairing_prepared<'a>(pairs: impl Iterator<Item = (&'a G1Projective, &'a G2Projective)>) -> Gt {
+    let t = pairs
+        .map(|(g1, g2)| (g1.to_affine(), G2Prepared::from(g2.to_affine())))
+        .collect::<Vec<_>>();
+    let ref_t = t.iter().map(|(p1, p2)| (p1, p2)).collect::<Vec<_>>();
     multi_miller_loop(ref_t.as_slice()).final_exponentiation()
 }
 
+pub fn pairing_g1_g2(points: &[(G1Projective, G2Projective)]) -> Gt {
+    pairing_prepared(points.iter().map(|(g1, g2)| (g1, g2)))
+}
+
 pub fn pairing_g2_g1(points: &[(G2Projective, G1Projective)]) -> Gt {
-    let mut t = Vec::with_capacity(points.len());
-    for (p1, p2) in points {
-        t.push((p2.to_affine(), G2Prepared::from(p1.to_affine())));
+    pairing_prepared(points.iter().map(|(g2, g1)| (g1, g2)))
+}
+
+fn scalar_to_bytes<C: BlsSignatureImpl, const N: usize>(
+    s: <<C as Pairing>::PublicKey as Group>::Scalar,
+    big_endian: bool,
+) -> [u8; N] {
+    let mut bytes = s.to_repr();
+    let ptr = bytes.as_mut();
+    if big_endian {
+        ptr.reverse();
     }
-    let mut ref_t = Vec::with_capacity(t.len());
-    for (p1, p2) in &t {
-        ref_t.push((p1, p2));
-    }
-    multi_miller_loop(ref_t.as_slice()).final_exponentiation()
+    <[u8; N]>::try_from(ptr).unwrap()
 }
 
 pub fn scalar_to_be_bytes<C: BlsSignatureImpl, const N: usize>(
     s: <<C as Pairing>::PublicKey as Group>::Scalar,
 ) -> [u8; N] {
-    let mut bytes = s.to_repr();
-    let ptr = bytes.as_mut();
-    // Make big endian
-    ptr.reverse();
-    <[u8; N]>::try_from(ptr).unwrap()
+    scalar_to_bytes::<C, N>(s, true)
 }
 
 pub fn scalar_to_le_bytes<C: BlsSignatureImpl, const N: usize>(
     s: <<C as Pairing>::PublicKey as Group>::Scalar,
 ) -> [u8; N] {
-    let mut bytes = s.to_repr();
-    let ptr = bytes.as_mut();
-    <[u8; N]>::try_from(ptr).unwrap()
+    scalar_to_bytes::<C, N>(s, false)
+}
+
+fn scalar_from_bytes<C: BlsSignatureImpl, const N: usize>(
+    input: &[u8; N],
+    big_endian: bool,
+) -> CtOption<<<C as Pairing>::PublicKey as Group>::Scalar> {
+    if input.is_zero().into() {
+        return CtOption::new(
+            <<C as Pairing>::PublicKey as Group>::Scalar::ZERO,
+            Choice::from(0u8),
+        );
+    }
+    let mut repr = <<<C as Pairing>::PublicKey as Group>::Scalar as PrimeField>::Repr::default();
+    let t = repr.as_mut();
+    t.copy_from_slice(input);
+    if big_endian {
+        t.reverse();
+    }
+    <<C as Pairing>::PublicKey as Group>::Scalar::from_repr(repr)
 }
 
 pub fn scalar_from_be_bytes<C: BlsSignatureImpl, const N: usize>(
     input: &[u8; N],
 ) -> CtOption<<<C as Pairing>::PublicKey as Group>::Scalar> {
-    if input.is_zero().into() {
-        return CtOption::new(
-            <<C as Pairing>::PublicKey as Group>::Scalar::ZERO,
-            Choice::from(0u8),
-        );
-    }
-    let mut repr = <<<C as Pairing>::PublicKey as Group>::Scalar as PrimeField>::Repr::default();
-    let t = repr.as_mut();
-    t.copy_from_slice(input);
-    t.reverse();
-    <<C as Pairing>::PublicKey as Group>::Scalar::from_repr(repr)
+    scalar_from_bytes::<C, N>(input, true)
 }
 
 pub fn scalar_from_le_bytes<C: BlsSignatureImpl, const N: usize>(
     input: &[u8; N],
 ) -> CtOption<<<C as Pairing>::PublicKey as Group>::Scalar> {
-    if input.is_zero().into() {
-        return CtOption::new(
-            <<C as Pairing>::PublicKey as Group>::Scalar::ZERO,
-            Choice::from(0u8),
-        );
-    }
-    let mut repr = <<<C as Pairing>::PublicKey as Group>::Scalar as PrimeField>::Repr::default();
-    let t = repr.as_mut();
-    t.copy_from_slice(input);
-    <<C as Pairing>::PublicKey as Group>::Scalar::from_repr(repr)
+    scalar_from_bytes::<C, N>(input, false)
 }
 
 pub mod fixed_arr {

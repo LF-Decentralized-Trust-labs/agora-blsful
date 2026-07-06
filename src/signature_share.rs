@@ -17,52 +17,11 @@ impl<C: BlsSignatureImpl> Default for SignatureShare<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> Display for SignatureShare<C> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Basic(s) => write!(f, "Basic({})", s),
-            Self::MessageAugmentation(s) => write!(f, "MessageAugmentation({})", s),
-            Self::ProofOfPossession(s) => write!(f, "ProofOfPossession({})", s),
-        }
-    }
-}
-
-impl<C: BlsSignatureImpl> fmt::Debug for SignatureShare<C> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Basic(s) => write!(f, "Basic({:?})", s),
-            Self::MessageAugmentation(s) => write!(f, "MessageAugmentation({:?})", s),
-            Self::ProofOfPossession(s) => write!(f, "ProofOfPossession({:?})", s),
-        }
-    }
-}
-
-impl<C: BlsSignatureImpl> Copy for SignatureShare<C> {}
-
-impl<C: BlsSignatureImpl> Clone for SignatureShare<C> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for SignatureShare<C> {
-    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
-        match (a, b) {
-            (Self::Basic(a), Self::Basic(b)) => Self::Basic(
-                <C as Pairing>::SignatureShare::conditional_select(a, b, choice),
-            ),
-            (Self::MessageAugmentation(a), Self::MessageAugmentation(b)) => {
-                Self::MessageAugmentation(<C as Pairing>::SignatureShare::conditional_select(
-                    a, b, choice,
-                ))
-            }
-            (Self::ProofOfPossession(a), Self::ProofOfPossession(b)) => Self::ProofOfPossession(
-                <C as Pairing>::SignatureShare::conditional_select(a, b, choice),
-            ),
-            _ => panic!("SignatureShare::conditional_select: mismatched variants"),
-        }
-    }
-}
+impl_signature_enum_traits!(
+    SignatureShare,
+    <C as Pairing>::SignatureShare,
+    "SignatureShare::conditional_select: mismatched variants"
+);
 
 impl_from_derivatives_generic!(SignatureShare);
 
@@ -121,7 +80,7 @@ impl<C: BlsSignatureImpl> SignatureShare<C> {
     }
 
     /// Convert a share byte sequence from version 1 to a signature share
-    /// that was output from converting to Vec<u8>
+    /// that was output from converting to `Vec<u8>`
     pub fn from_v1_inner_bytes(raw_bytes: &[u8]) -> BlsResult<Self> {
         let mut repr = <C::Signature as GroupEncoding>::Repr::default();
         if repr.as_ref().len() != raw_bytes.len() - 2 {
