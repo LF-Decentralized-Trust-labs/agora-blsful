@@ -2,11 +2,7 @@ use super::*;
 use crate::helpers::*;
 use crate::impls::inner_types::*;
 use crate::{BlsError, BlsResult};
-use rand::Rng;
-use sha3::{
-    Shake128,
-    digest::{ExtendableOutput, Update, XofReader},
-};
+use rand::RngExt;
 use subtle::{Choice, ConditionallySelectable, CtOption};
 use vsss_rs::*;
 
@@ -40,19 +36,14 @@ pub trait BlsSignCrypt:
         let message = message.as_ref();
 
         // r ← Zq
-        let r = Self::hash_to_scalar(get_crypto_rng().r#gen::<[u8; 32]>(), SALT);
+        let mut rng = get_crypto_rng();
+        let r = Self::hash_to_scalar(rng.random::<[u8; 32]>(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
         // U = P^r
         let u = Self::PublicKey::generator() * r;
         debug_assert_eq!(u.is_identity().unwrap_u8(), 0u8);
         // V = HℓX(R) ⊕ M
-        let overhead = uint_zigzag::Uint::from(message.len());
-        let mut overhead_bytes = overhead.to_vec();
-        overhead_bytes.extend_from_slice(message);
-        // Always use at least 32 bytes
-        while overhead_bytes.len() < 32 {
-            overhead_bytes.push(0u8);
-        }
+        let overhead_bytes = encode_message_with_len(message, 32);
         let v = Self::compute_v(pk * r, overhead_bytes.as_slice());
         // W = HG(U′ || V)^r
         let w = Self::compute_w(u, v.as_slice(), dst) * r;
@@ -121,32 +112,16 @@ pub trait BlsSignCrypt:
     /// Decrypt a ciphertext
     fn decrypt(v: &[u8], ua: Self::PublicKey, valid: Choice) -> CtOption<Vec<u8>> {
         let plaintext = Self::compute_v(ua, v);
-        if let Some(overhead) = uint_zigzag::Uint::peek(plaintext.as_slice()) {
-            // If peek succeeds then try_from will also, so unwrap is okay.
-            // peek returns the amount actually used whereas try_from does not
-            // thus both are used.
-            let len = uint_zigzag::Uint::try_from(&plaintext[..overhead])
-                .unwrap()
-                .0 as usize;
-            if len <= plaintext.len() - overhead {
-                return CtOption::new(plaintext[overhead..overhead + len].to_vec(), valid);
-            }
+        if let Some(message) = decode_message_with_len(plaintext.as_slice()) {
+            return CtOption::new(message, valid);
         }
         CtOption::new(v.to_vec(), 0u8.into())
     }
 
     /// Compute the `V` value
     fn compute_v(uar: Self::PublicKey, r: &[u8]) -> Vec<u8> {
-        let mut hasher = Shake128::default();
-        hasher.update(uar.to_bytes().as_ref());
-        // HℓX(R)
-        let mut reader = hasher.finalize_xof();
-
-        let mut v = vec![0u8; r.len()];
-        reader.read(&mut v);
-        debug_assert!(!v.iter().all(|x| *x == 0));
         // V = HℓX(R) ⊕ M
-        byte_xor(r, &v)
+        shake128_xor(uar.to_bytes().as_ref(), r)
     }
 
     /// Compute the `W` value

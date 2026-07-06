@@ -1,7 +1,7 @@
 use super::*;
 use crate::impls::inner_types::*;
 use crate::{BlsError, BlsResult};
-use rand_core::{CryptoRng, RngCore};
+use rand_core::CryptoRng;
 
 const SALT: &[u8] = b"ELGAMAL_BLS12381_XOF:HKDF-SHA2-256_";
 
@@ -28,7 +28,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         message: <Self::PublicKey as Group>::Scalar,
         generator: Option<Self::PublicKey>,
         blinder: Option<<Self::PublicKey as Group>::Scalar>,
-        rng: impl CryptoRng + RngCore,
+        mut rng: impl CryptoRng,
     ) -> BlsResult<(Self::PublicKey, Self::PublicKey)> {
         let generator = generator.unwrap_or_else(|| Self::message_generator());
 
@@ -39,7 +39,8 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         }
 
         // odds of this being zero are 2^-256 so we can ignore checking for zero
-        let blinder = blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(rng));
+        let blinder =
+            blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(&mut rng));
         debug_assert_eq!(blinder.is_zero().unwrap_u8(), 0u8);
 
         let ek = generator * message;
@@ -57,7 +58,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         pk: Self::PublicKey,
         message: Self::PublicKey,
         blinder: Option<<Self::PublicKey as Group>::Scalar>,
-        rng: impl CryptoRng + RngCore,
+        mut rng: impl CryptoRng,
     ) -> BlsResult<(Self::PublicKey, Self::PublicKey)> {
         if pk.is_identity().into() {
             return Err(BlsError::InvalidInputs(
@@ -65,7 +66,8 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
             ));
         }
         // odds of this being zero are 2^-256 so we can ignore checking for zero
-        let blinder = blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(rng));
+        let blinder =
+            blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(&mut rng));
         debug_assert_eq!(blinder.is_zero().unwrap_u8(), 0u8);
         let c1 = Self::PublicKey::generator() * blinder;
         debug_assert_eq!(c1.is_identity().unwrap_u8(), 0u8);
@@ -81,7 +83,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         message: <Self::PublicKey as Group>::Scalar,
         generator: Option<Self::PublicKey>,
         blinder: Option<<Self::PublicKey as Group>::Scalar>,
-        mut rng: impl CryptoRng + RngCore,
+        mut rng: impl CryptoRng,
     ) -> BlsResult<(
         Self::PublicKey,
         Self::PublicKey,

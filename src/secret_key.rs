@@ -2,8 +2,8 @@ use crate::helpers::{KEYGEN_SALT, get_crypto_rng};
 use crate::impls::inner_types::*;
 use crate::*;
 use core::fmt::{self, Formatter};
-use rand::Rng;
-use rand_core::{CryptoRng, RngCore};
+use rand::RngExt;
+use rand_core::CryptoRng;
 use serde::de::{SeqAccess, Visitor};
 use subtle::CtOption;
 use vsss_rs::*;
@@ -130,7 +130,7 @@ impl SecretKeyEnum {
     }
 
     /// Compute a secret key from a CS-PRNG
-    pub fn random(t: Bls12381, rng: impl RngCore + CryptoRng) -> Self {
+    pub fn random(t: Bls12381, rng: impl CryptoRng) -> Self {
         match t {
             Bls12381::G1 => SecretKeyEnum::G1(SecretKey::random(rng)),
             Bls12381::G2 => SecretKeyEnum::G2(SecretKey::random(rng)),
@@ -281,9 +281,9 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
     }
 
     /// Compute a secret key from a CS-PRNG
-    pub fn random(mut rng: impl RngCore + CryptoRng) -> Self {
+    pub fn random(mut rng: impl CryptoRng) -> Self {
         Self(<C as HashToScalar>::hash_to_scalar(
-            rng.r#gen::<[u8; SECRET_KEY_BYTES]>(),
+            rng.random::<[u8; SECRET_KEY_BYTES]>(),
             KEYGEN_SALT,
         ))
     }
@@ -320,14 +320,15 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
         &self,
         threshold: usize,
         limit: usize,
-        rng: impl RngCore + CryptoRng,
+        mut rng: impl CryptoRng,
     ) -> BlsResult<Vec<SecretKeyShare<C>>> {
         let secret = IdentifierPrimeField(self.0);
-        let shares =
-            shamir::split_secret::<<C as Pairing>::SecretKeyShare>(threshold, limit, &secret, rng)?
-                .into_iter()
-                .map(SecretKeyShare)
-                .collect::<Vec<_>>();
+        let shares = shamir::split_secret::<<C as Pairing>::SecretKeyShare>(
+            threshold, limit, &secret, &mut rng,
+        )?
+        .into_iter()
+        .map(SecretKeyShare)
+        .collect::<Vec<_>>();
         Ok(shares)
     }
 

@@ -1,7 +1,7 @@
 use crate::impls::inner_types::*;
 use crate::*;
-use rand::Rng;
-use rand_core::{CryptoRng, RngCore};
+use rand::RngExt;
+use rand_core::CryptoRng;
 use subtle::CtOption;
 
 /// The commitment portion of the signature proof of knowledge
@@ -261,9 +261,9 @@ impl<C: BlsSignatureImpl> ProofCommitmentChallenge<C> {
     }
 
     /// Compute a random challenge from a CS-PRNG
-    pub fn random(mut rng: impl RngCore + CryptoRng) -> Self {
+    pub fn random(mut rng: impl CryptoRng) -> Self {
         Self(<C as HashToScalar>::hash_to_scalar(
-            rng.r#gen::<[u8; SECRET_KEY_BYTES]>(),
+            rng.random::<[u8; SECRET_KEY_BYTES]>(),
             KEYGEN_SALT,
         ))
     }

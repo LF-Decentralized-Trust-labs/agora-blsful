@@ -13,8 +13,8 @@ use core::{
     marker::PhantomData,
     str::FromStr,
 };
-use rand::Rng;
-use rand_core::{CryptoRng, RngCore};
+use rand::RngExt;
+use rand_core::CryptoRng;
 
 /// Types that implement BLS signatures
 pub trait BlsSignatureImpl:
@@ -52,9 +52,9 @@ impl<T: BlsSignatureImpl> BlsSignature<T> {
     }
 
     /// Compute a secret key from a CS-PRNG
-    pub fn random_secret_key(mut rng: impl RngCore + CryptoRng) -> SecretKey<T> {
+    pub fn random_secret_key(mut rng: impl CryptoRng) -> SecretKey<T> {
         SecretKey(<T as HashToScalar>::hash_to_scalar(
-            rng.r#gen::<[u8; SECRET_KEY_BYTES]>(),
+            rng.random::<[u8; SECRET_KEY_BYTES]>(),
             KEYGEN_SALT,
         ))
     }
@@ -73,9 +73,7 @@ impl<T: BlsSignatureImpl> BlsSignature<T> {
 
     /// Compute a commitment challenge for signature proofs of knowledge from a CS-PRNG
     /// as step 2
-    pub fn random_proof_challenge(
-        mut rng: impl RngCore + CryptoRng,
-    ) -> ProofCommitmentChallenge<T> {
+    pub fn random_proof_challenge(mut rng: impl CryptoRng) -> ProofCommitmentChallenge<T> {
         ProofCommitmentChallenge::random(&mut rng)
     }
 }
@@ -186,7 +184,7 @@ pub mod inner_types {
     pub use bls12_381_plus::{
         Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
         G1Projective, G2Affine, G2Prepared, G2Projective, Gt, MillerLoopResult, Scalar, ScalarLe,
-        elliptic_curve::hash2curve::{
+        elliptic_curve_013::hash2curve::{
             ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd,
         },
         ff::{Field, FieldBits, FromUniformBytes, PrimeField, PrimeFieldBits},
@@ -199,8 +197,9 @@ pub mod inner_types {
     #[cfg(feature = "blst")]
     pub use blstrs_plus::{
         Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
-        G1Compressed, G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt, Scalar,
-        elliptic_curve::hash2curve::{
+        G1Compressed, G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt,
+        MillerLoopResult, Scalar,
+        elliptic_curve_013::hash2curve::{
             ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd,
         },
         ff::{Field, FieldBits, FromUniformBytes, PrimeField, PrimeFieldBits},
@@ -209,6 +208,5 @@ pub mod inner_types {
             UncompressedEncoding, cofactor::*, prime::*,
         },
         multi_miller_loop, pairing,
-        pairing_lib::{Engine, MillerLoopResult, MultiMillerLoop, PairingCurveAffine},
     };
 }

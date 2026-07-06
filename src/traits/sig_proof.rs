@@ -16,10 +16,11 @@ pub trait BlsSignatureProof:
         msg: B,
         dst: D,
     ) -> BlsResult<(Self::Signature, <Self::Signature as Group>::Scalar)> {
-        let mut x = <Self::Signature as Group>::Scalar::random(get_crypto_rng());
+        let mut rng = get_crypto_rng();
+        let mut x = <Self::Signature as Group>::Scalar::random(&mut rng);
         // Should only happen with negligible probability but just in case
         while x.is_zero().into() {
-            x = <Self::Signature as Group>::Scalar::random(get_crypto_rng());
+            x = <Self::Signature as Group>::Scalar::random(&mut rng);
         }
         let a = Self::hash_to_point(msg, dst);
         Ok((a * x, x))
@@ -82,10 +83,11 @@ pub trait BlsSignatureProof:
                 "signature is the identity point".to_string(),
             ));
         }
-        let mut x = <Self::Signature as Group>::Scalar::random(get_crypto_rng());
+        let mut rng = get_crypto_rng();
+        let mut x = <Self::Signature as Group>::Scalar::random(&mut rng);
         // Should only happen with negligible probability but just in case
         while x.is_zero().into() {
-            x = <Self::Signature as Group>::Scalar::random(get_crypto_rng());
+            x = <Self::Signature as Group>::Scalar::random(&mut rng);
         }
         let a = Self::hash_to_point(msg, dst);
         debug_assert_eq!(a.is_identity().unwrap_u8(), 0u8);

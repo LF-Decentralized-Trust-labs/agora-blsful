@@ -2,12 +2,8 @@ use crate::helpers::*;
 use crate::impls::inner_types::*;
 use crate::traits::{HashToPoint, HashToScalar, Pairing};
 use crate::*;
-use rand::Rng;
-use sha2::Sha256;
-use sha3::{
-    Shake128,
-    digest::{Digest, ExtendableOutput, FixedOutput, Update, XofReader},
-};
+use rand::RngExt;
+use sha2::{Digest, Sha256};
 use subtle::CtOption;
 
 const SALT: &[u8] = b"TIMELOCK_BLS12381_XOF:HKDF-SHA2-256_";
@@ -32,7 +28,8 @@ pub trait BlsTimeCrypt:
         }
 
         // \alpha ← Zq
-        let alpha = Self::hash_to_scalar(get_crypto_rng().r#gen::<[u8; 32]>(), SALT);
+        let mut rng = get_crypto_rng();
+        let alpha = Self::hash_to_scalar(rng.random::<[u8; 32]>(), SALT);
         debug_assert_eq!(alpha.is_zero().unwrap_u8(), 0u8);
         let msg_dst = Sha256::digest(message);
         // r = HZq(\alpha  || M)
@@ -41,7 +38,7 @@ pub trait BlsTimeCrypt:
             .as_ref()
             .iter()
             .copied()
-            .chain(msg_dst.as_slice().iter().copied())
+            .chain(msg_dst.iter().copied())
             .collect();
         let r = Self::hash_to_scalar(r_input.as_slice(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
@@ -60,13 +57,7 @@ pub trait BlsTimeCrypt:
         // V = Hℓ(K) ⊕ \alpha
         let v = Self::compute_v(k, alpha.to_repr().as_ref());
         // W = HℓX(\alpha) ⊕ M
-        let overhead = uint_zigzag::Uint::from(message.len());
-        let mut overhead_bytes = overhead.to_vec();
-        overhead_bytes.extend_from_slice(message);
-        while overhead_bytes.len() < 32 {
-            overhead_bytes.push(0u8);
-        }
-
+        let overhead_bytes = encode_message_with_len(message, 32);
         let w = Self::compute_w(alpha.to_repr().as_ref(), overhead_bytes.as_slice());
 
         Ok((u, v, w))
@@ -105,7 +96,7 @@ pub trait BlsTimeCrypt:
         let r_input: Vec<u8> = alpha
             .iter()
             .copied()
-            .chain(msg_dst.as_slice().iter().copied())
+            .chain(msg_dst.iter().copied())
             .collect();
         let r = Self::hash_to_scalar(r_input.as_slice(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
@@ -117,10 +108,8 @@ pub trait BlsTimeCrypt:
 
     /// Compute the `V` value
     fn compute_v(k_tick: Self::PairingResult, alpha_or_v: &[u8]) -> [u8; 32] {
-        let mut hasher = Sha256::default();
-        <Sha256 as Digest>::update(&mut hasher, k_tick.to_bytes().as_ref());
         // Hℓ(K)
-        let output = hasher.finalize_fixed();
+        let output = Sha256::digest(k_tick.to_bytes().as_ref());
         // V = Hℓ(K') ⊕ \alpha
         let result = byte_xor(alpha_or_v, &output);
         <[u8; 32]>::try_from(result.as_slice()).unwrap()
@@ -128,15 +117,7 @@ pub trait BlsTimeCrypt:
 
     /// Compute the `W` value
     fn compute_w(alpha: &[u8], msg: &[u8]) -> Vec<u8> {
-        let mut hasher = Shake128::default();
-        hasher.update(alpha);
-        // HℓX(\alpha)
-        let mut reader = hasher.finalize_xof();
-
-        let mut w = vec![0u8; msg.len()];
-        reader.read(&mut w);
-        debug_assert!(!w.iter().all(|x| *x == 0));
         // W = HℓX(\alpha) ⊕ M
-        byte_xor(msg, &w)
+        shake128_xor(alpha, msg)
     }
 }

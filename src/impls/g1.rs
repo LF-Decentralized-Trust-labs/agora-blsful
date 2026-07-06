@@ -15,7 +15,7 @@ impl HashToPoint for Bls12381G1Impl {
     type Output = G1Projective;
 
     fn hash_to_point<B: AsRef<[u8]>, C: AsRef<[u8]>>(m: B, dst: C) -> Self::Output {
-        Self::Output::hash::<ExpandMsgXmd<sha2::Sha256>>(m.as_ref(), dst.as_ref())
+        Self::Output::hash::<ExpandMsgXmd<sha2_010::Sha256>>(m.as_ref(), dst.as_ref())
     }
 }
 
@@ -148,6 +148,6 @@ impl HashToPoint for Bls12381G1Hasher {
     type Output = G2Projective;
 
     fn hash_to_point<B: AsRef<[u8]>, C: AsRef<[u8]>>(m: B, dst: C) -> Self::Output {
-        Self::Output::hash::<ExpandMsgXmd<sha2::Sha256>>(m.as_ref(), dst.as_ref())
+        Self::Output::hash::<ExpandMsgXmd<sha2_010::Sha256>>(m.as_ref(), dst.as_ref())
     }
 }

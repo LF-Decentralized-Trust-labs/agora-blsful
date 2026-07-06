@@ -1,9 +1,44 @@
-mod utils;
-
 use blsful::inner_types::{G1Projective, G2Projective};
 use blsful::*;
+use rand_core::{Infallible, Rng, SeedableRng, TryRng};
 use rstest::*;
-use utils::*;
+
+const TEST_MSG: &[u8] = b"signatures_work";
+
+struct MockRng(rand_xorshift::XorShiftRng);
+
+impl SeedableRng for MockRng {
+    type Seed = [u8; 16];
+
+    fn from_seed(seed: Self::Seed) -> Self {
+        Self(rand_xorshift::XorShiftRng::from_seed(seed))
+    }
+}
+
+impl rand_core::TryCryptoRng for MockRng {}
+
+impl TryRng for MockRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(self.0.next_u32())
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.0.next_u64())
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.0.fill_bytes(dest);
+        Ok(())
+    }
+}
+
+impl Default for MockRng {
+    fn default() -> Self {
+        Self(rand_xorshift::XorShiftRng::from_seed([7u8; 16]))
+    }
+}
 
 #[rstest]
 #[case::g1(Bls12381G1Impl)]
@@ -136,47 +171,20 @@ fn shares_serialize<
     // High number to test for fuzzing
     let sk_shares = sk.split(10, 20).unwrap();
     for share in &sk_shares {
-        let res = serde_json::to_vec(&share);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let text = res.unwrap();
-        let res = serde_json::from_slice::<SecretKeyShare<C>>(&text);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let share2 = res.unwrap();
+        let text = serde_json::to_vec(&share).unwrap_or_else(|e| panic!("{e:?}"));
+        let share2 =
+            serde_json::from_slice::<SecretKeyShare<C>>(&text).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(share, &share2);
 
-        let res = serde_bare::to_vec(&share);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let text = res.unwrap();
-        let res = serde_bare::from_slice::<SecretKeyShare<C>>(&text);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let share2 = res.unwrap();
+        let text = serde_bare::to_vec(&share).unwrap_or_else(|e| panic!("{e:?}"));
+        let share2 =
+            serde_bare::from_slice::<SecretKeyShare<C>>(&text).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(share, &share2);
 
         let pks = share.public_key().unwrap();
-        let res = serde_json::to_vec(&pks);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let text = res.unwrap();
-        let res = serde_json::from_slice::<PublicKeyShare<C>>(&text);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let pks2 = res.unwrap();
+        let text = serde_json::to_vec(&pks).unwrap_or_else(|e| panic!("{e:?}"));
+        let pks2 =
+            serde_json::from_slice::<PublicKeyShare<C>>(&text).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(pks, pks2);
 
         let sgs = share
@@ -198,33 +206,15 @@ fn shares_serialize_test() {
     // High number to test for fuzzing
     let sk_shares = sk.split(10, 20).unwrap();
     for share in &sk_shares {
-        let res = serde_json::to_vec(&share);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let text = res.unwrap();
-        let res = serde_json::from_slice::<SecretKeyShare<Bls12381G1Impl>>(&text);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let share2 = res.unwrap();
+        let text = serde_json::to_vec(&share).unwrap_or_else(|e| panic!("{e:?}"));
+        let share2 = serde_json::from_slice::<SecretKeyShare<Bls12381G1Impl>>(&text)
+            .unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(share, &share2);
 
         let pks = share.public_key().unwrap();
-        let res = serde_json::to_vec(&pks);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let text = res.unwrap();
-        let res = serde_json::from_slice::<PublicKeyShare<Bls12381G1Impl>>(&text);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let pks2 = res.unwrap();
+        let text = serde_json::to_vec(&pks).unwrap_or_else(|e| panic!("{e:?}"));
+        let pks2 = serde_json::from_slice::<PublicKeyShare<Bls12381G1Impl>>(&text)
+            .unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(pks, pks2);
 
         let sgs = share
@@ -249,12 +239,8 @@ fn legacy_shares_test() {
         v1[0] = share.0.identifier.to_le_bytes()[0];
         v1[1..].copy_from_slice(&share.0.value.to_le_bytes());
 
-        let res = SecretKeyShare::<Bls12381G1Impl>::from_v1_bytes(&v1);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let share2 = res.unwrap();
+        let share2 = SecretKeyShare::<Bls12381G1Impl>::from_v1_bytes(&v1)
+            .unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(share, &share2);
 
         let mut v1 = [0u8; 49];
@@ -262,12 +248,7 @@ fn legacy_shares_test() {
         let t = G1Projective::GENERATOR * share.0.value.0;
         v1[1..].copy_from_slice(&t.to_compressed());
 
-        let res = InnerPointShareG1::from_v1_bytes(&v1);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let share2 = res.unwrap();
+        let share2 = InnerPointShareG1::from_v1_bytes(&v1).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(share.0.identifier, share2.0.identifier);
         assert_eq!(t, share2.0.value.0);
 
@@ -276,12 +257,7 @@ fn legacy_shares_test() {
         let t = G2Projective::GENERATOR * share.0.value.0;
         v1[1..].copy_from_slice(&t.to_compressed());
 
-        let res = InnerPointShareG2::from_v1_bytes(&v1);
-        if res.is_err() {
-            assert!(false, "{:?}", res.unwrap_err());
-        }
-        assert!(res.is_ok());
-        let share2 = res.unwrap();
+        let share2 = InnerPointShareG2::from_v1_bytes(&v1).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(share.0.identifier, share2.0.identifier);
         assert_eq!(t, share2.0.value.0);
     }

@@ -1,7 +1,7 @@
-mod utils;
 use blsful::*;
 use rstest::*;
-use utils::*;
+
+const TEST_MSG: &[u8] = b"signatures_work";
 
 #[rstest]
 #[case::g1(Bls12381G1Impl)]

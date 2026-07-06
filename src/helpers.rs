@@ -2,6 +2,7 @@ use crate::impls::inner_types::*;
 use crate::{BlsSignatureImpl, Pairing};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
+use shake::{ExtendableOutput, Shake128, Update, XofReader};
 use subtle::{Choice, CtOption};
 
 pub const KEYGEN_SALT: &[u8] = b"BLS-SIG-KEYGEN-SALT-";
@@ -27,15 +28,41 @@ pub fn scalar_from_hkdf_bytes(salt: Option<&[u8]>, ikm: &[u8]) -> Scalar {
 
 pub fn byte_xor(arr1: &[u8], arr2: &[u8]) -> Vec<u8> {
     debug_assert_eq!(arr1.len(), arr2.len());
-    let mut o = Vec::with_capacity(arr1.len());
-    for (a, b) in arr1.iter().zip(arr2.iter()) {
-        o.push(*a ^ *b)
+    arr1.iter().zip(arr2.iter()).map(|(a, b)| a ^ b).collect()
+}
+
+pub fn shake128_xor(seed: &[u8], input: &[u8]) -> Vec<u8> {
+    let mut hasher = Shake128::default();
+    hasher.update(seed);
+    let mut reader = hasher.finalize_xof();
+
+    let mut output = vec![0u8; input.len()];
+    reader.read(&mut output);
+    debug_assert!(!output.iter().all(|x| *x == 0));
+    for (output, input) in output.iter_mut().zip(input.iter()) {
+        *output ^= input;
     }
-    o
+    output
+}
+
+pub fn encode_message_with_len(message: &[u8], min_len: usize) -> Vec<u8> {
+    let overhead = uint_zigzag::Uint::from(message.len());
+    let mut encoded = overhead.to_vec();
+    encoded.extend_from_slice(message);
+    encoded.resize(encoded.len().max(min_len), 0u8);
+    encoded
+}
+
+pub fn decode_message_with_len(encoded: &[u8]) -> Option<Vec<u8>> {
+    let overhead = uint_zigzag::Uint::peek(encoded)?;
+    // If peek succeeds then try_from will also, so unwrap is okay.
+    // peek returns the amount actually used whereas try_from does not.
+    let len = uint_zigzag::Uint::try_from(&encoded[..overhead]).unwrap().0 as usize;
+    (len <= encoded.len() - overhead).then(|| encoded[overhead..overhead + len].to_vec())
 }
 
 pub fn get_crypto_rng() -> ChaCha20Rng {
-    ChaCha20Rng::from_entropy()
+    ChaCha20Rng::from_rng(&mut rand::rng())
 }
 
 pub fn pairing_g1_g2(points: &[(G1Projective, G2Projective)]) -> Gt {

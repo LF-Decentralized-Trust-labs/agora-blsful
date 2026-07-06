@@ -82,9 +82,7 @@ use vsss_rs::{DefaultShare, IdentifierPrimeField, Share, ValueGroup};
 use zeroize::DefaultIsZeroes;
 
 /// The share type for points in G1
-#[derive(
-    Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct InnerPointShareG1(
     pub DefaultShare<IdentifierPrimeField<Scalar>, ValueGroup<G1Projective>>,
@@ -94,7 +92,7 @@ impl subtle::ConditionallySelectable for InnerPointShareG1 {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let identifier1 = a.0.identifier.0;
         let identifier2 = b.0.identifier.0;
-        let value1 = b.0.value.to_affine();
+        let value1 = a.0.value.to_affine();
         let value2 = b.0.value.to_affine();
 
         let identifier = Scalar::conditional_select(&identifier1, &identifier2, choice);
@@ -219,9 +217,7 @@ impl InnerPointShareG1 {
 }
 
 /// The share type for points in G2
-#[derive(
-    Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct InnerPointShareG2(
     pub DefaultShare<IdentifierPrimeField<Scalar>, ValueGroup<G2Projective>>,
@@ -233,7 +229,7 @@ impl subtle::ConditionallySelectable for InnerPointShareG2 {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let identifier1 = a.0.identifier.0;
         let identifier2 = b.0.identifier.0;
-        let value1 = b.0.value.to_affine();
+        let value1 = a.0.value.to_affine();
         let value2 = b.0.value.to_affine();
         let identifier = Scalar::conditional_select(&identifier1, &identifier2, choice);
         let value = G2Affine::conditional_select(&value1, &value2, choice);
