@@ -15,7 +15,7 @@ license = "MIT OR Apache-2.0"
 name = "blsful"
 readme = "README.md"
 repository = "https://github.com/LF-Decentralized-Trust-labs/agora-blsful"
-version = "4.0.0-rc0"
+version = "4.0.0-rc1"
 
 [features]
 default = ["blst"]
@@ -24,8 +24,8 @@ blst = ["blstrs_plus", "blstrs_plus/expose-fields"]
 
 [dependencies]
 anyhow = "1.0"
-bls12_381_plus =  { version = "0.9.0-rc0", optional = true }
-blstrs_plus = { version = "0.9.0-rc0", optional = true}
+bls12_381_plus =  { version = "0.9.0-rc1", optional = true }
+blstrs_plus = { version = "0.9.0-rc1", optional = true}
 hex = "0.4"
 hkdf = { version = "0.13", default-features = false }
 merlin = "3"
