@@ -24,9 +24,11 @@ impl<C: BlsSignatureImpl> Clone for SecretKeyShare<C> {
 
 impl_from_derivatives_generic!(SecretKeyShare);
 
-impl<C: BlsSignatureImpl> From<&SecretKeyShare<C>> for Vec<u8> {
-    fn from(sk: &SecretKeyShare<C>) -> Self {
-        serde_bare::to_vec(sk).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&SecretKeyShare<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(sk: &SecretKeyShare<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(sk).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

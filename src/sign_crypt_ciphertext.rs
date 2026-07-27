@@ -70,9 +70,11 @@ impl<C: BlsSignatureImpl> Display for SignCryptCiphertext<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> From<&SignCryptCiphertext<C>> for Vec<u8> {
-    fn from(value: &SignCryptCiphertext<C>) -> Self {
-        serde_bare::to_vec(value).expect("failed to serialize SignCryptCiphertext")
+impl<C: BlsSignatureImpl> TryFrom<&SignCryptCiphertext<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &SignCryptCiphertext<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 
@@ -164,9 +166,11 @@ impl<C: BlsSignatureImpl> Clone for SignCryptDecryptionKey<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> From<&SignCryptDecryptionKey<C>> for Vec<u8> {
-    fn from(value: &SignCryptDecryptionKey<C>) -> Self {
-        serde_bare::to_vec(value).expect("failed to serialize SignCryptDecryptionKey")
+impl<C: BlsSignatureImpl> TryFrom<&SignCryptDecryptionKey<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &SignCryptDecryptionKey<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

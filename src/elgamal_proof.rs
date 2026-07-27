@@ -52,9 +52,11 @@ impl<C: BlsSignatureImpl> Clone for ElGamalProof<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> From<&ElGamalProof<C>> for Vec<u8> {
-    fn from(value: &ElGamalProof<C>) -> Self {
-        serde_bare::to_vec(value).expect("Failed to serialize ElGamalProof")
+impl<C: BlsSignatureImpl> TryFrom<&ElGamalProof<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ElGamalProof<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

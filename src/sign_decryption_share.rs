@@ -23,9 +23,11 @@ impl<C: BlsSignatureImpl> fmt::Debug for SignDecryptionShare<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> From<&SignDecryptionShare<C>> for Vec<u8> {
-    fn from(share: &SignDecryptionShare<C>) -> Vec<u8> {
-        serde_bare::to_vec(&share.0).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&SignDecryptionShare<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(share: &SignDecryptionShare<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(&share.0).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

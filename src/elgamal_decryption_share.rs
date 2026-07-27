@@ -24,9 +24,11 @@ impl<C: BlsSignatureImpl> fmt::Debug for ElGamalDecryptionShare<C> {
 
 impl<C: BlsSignatureImpl> ElGamalDecryptionShare<C> {}
 
-impl<C: BlsSignatureImpl> From<&ElGamalDecryptionShare<C>> for Vec<u8> {
-    fn from(value: &ElGamalDecryptionShare<C>) -> Self {
-        serde_bare::to_vec(value).expect("failed to serialize ElGamalDecryptionShare")
+impl<C: BlsSignatureImpl> TryFrom<&ElGamalDecryptionShare<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ElGamalDecryptionShare<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 
@@ -56,9 +58,11 @@ impl<C: BlsSignatureImpl> Clone for ElGamalDecryptionKey<C> {
     }
 }
 
-impl<C: BlsSignatureImpl> From<&ElGamalDecryptionKey<C>> for Vec<u8> {
-    fn from(value: &ElGamalDecryptionKey<C>) -> Self {
-        serde_bare::to_vec(value).expect("failed to serialize ElGamalDecryptionKey")
+impl<C: BlsSignatureImpl> TryFrom<&ElGamalDecryptionKey<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ElGamalDecryptionKey<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

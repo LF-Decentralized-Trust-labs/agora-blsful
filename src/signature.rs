@@ -18,13 +18,15 @@ impl Default for SignatureEnum {
     }
 }
 
-impl From<&SignatureEnum> for Vec<u8> {
-    fn from(value: &SignatureEnum) -> Self {
+impl TryFrom<&SignatureEnum> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &SignatureEnum) -> BlsResult<Self> {
         let (t, output) = match value {
-            SignatureEnum::G1(sig) => (Bls12381::G1, Vec::from(sig)),
-            SignatureEnum::G2(sig) => (Bls12381::G2, Vec::from(sig)),
+            SignatureEnum::G1(sig) => (Bls12381::G1, Vec::try_from(sig)?),
+            SignatureEnum::G2(sig) => (Bls12381::G2, Vec::try_from(sig)?),
         };
-        typed_bytes(t, output)
+        Ok(typed_bytes(t, output))
     }
 }
 
@@ -109,9 +111,11 @@ impl_signature_enum_traits!(
 
 impl_from_derivatives_generic!(Signature);
 
-impl<C: BlsSignatureImpl> From<&Signature<C>> for Vec<u8> {
-    fn from(value: &Signature<C>) -> Self {
-        serde_bare::to_vec(value).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&Signature<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &Signature<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 
@@ -195,19 +199,19 @@ mod tests {
             .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
             .unwrap();
 
-        let test: Vec<u8> = sig_b.into();
+        let test = Vec::<u8>::try_from(sig_b).unwrap();
         assert_eq!(test.len(), expected_len);
         let res_sig_b2 = Signature::<C>::try_from(test);
         assert!(res_sig_b2.is_ok());
         assert_eq!(sig_b, res_sig_b2.unwrap());
 
-        let test: Vec<u8> = sig_ma.into();
+        let test = Vec::<u8>::try_from(sig_ma).unwrap();
         assert_eq!(test.len(), expected_len);
         let res_sig_ma2 = Signature::<C>::try_from(test);
         assert!(res_sig_ma2.is_ok());
         assert_eq!(sig_ma, res_sig_ma2.unwrap());
 
-        let test: Vec<u8> = sig_pop.into();
+        let test = Vec::<u8>::try_from(sig_pop).unwrap();
         assert_eq!(test.len(), expected_len);
         let res_sig_pop2 = Signature::<C>::try_from(test);
         assert!(res_sig_pop2.is_ok());

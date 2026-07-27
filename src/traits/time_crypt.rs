@@ -76,12 +76,10 @@ pub trait BlsTimeCrypt:
 
         let mut message = vec![];
         if let Some(overhead) = uint_zigzag::Uint::peek(plaintext.as_slice()) {
-            // If peek succeeds then try_from will also, so unwrap is okay.
-            // peek returns the amount actually used whereas try_from does not
-            // thus both are used.
-            let len = uint_zigzag::Uint::try_from(&plaintext[..overhead])
-                .unwrap()
-                .0 as usize;
+            let Ok(encoded_len) = uint_zigzag::Uint::try_from(&plaintext[..overhead]) else {
+                return CtOption::new(w.to_vec(), 0u8.into());
+            };
+            let len = encoded_len.0 as usize;
             if len <= plaintext.len() - overhead {
                 message = plaintext[overhead..overhead + len].to_vec();
             } else {
@@ -107,7 +105,9 @@ pub trait BlsTimeCrypt:
         let output = Sha256::digest(k_tick.to_bytes().as_ref());
         // V = Hℓ(K') ⊕ \alpha
         let result = byte_xor(alpha_or_v, &output);
-        <[u8; 32]>::try_from(result.as_slice()).unwrap()
+        let mut value = [0u8; 32];
+        value.copy_from_slice(&result);
+        value
     }
 
     /// Compute the `W` value

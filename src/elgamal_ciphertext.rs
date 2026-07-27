@@ -96,9 +96,11 @@ impl<'a, C: BlsSignatureImpl> AddAssign<&'a ElGamalCiphertext<C>> for ElGamalCip
     }
 }
 
-impl<C: BlsSignatureImpl> From<&ElGamalCiphertext<C>> for Vec<u8> {
-    fn from(value: &ElGamalCiphertext<C>) -> Self {
-        serde_bare::to_vec(value).expect("failed to serialize ElGamalCiphertext")
+impl<C: BlsSignatureImpl> TryFrom<&ElGamalCiphertext<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ElGamalCiphertext<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

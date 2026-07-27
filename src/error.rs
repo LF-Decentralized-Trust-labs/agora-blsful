@@ -26,6 +26,9 @@ pub enum BlsError {
     VsssError,
     /// An error occurred during serialization
     #[error("serialization error: {0}")]
+    SerializationError(String),
+    /// An error occurred during deserialization
+    #[error("deserialization error: {0}")]
     DeserializationError(String),
 }
 

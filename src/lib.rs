@@ -78,7 +78,7 @@ use std::{
     hash::Hash,
 };
 use subtle::Choice;
-use vsss_rs::{DefaultShare, IdentifierPrimeField, Share, ValueGroup};
+use vsss_rs::{GroupShare, IdentifierPrimeField, PrimeFieldShare, Share, ValueGroup};
 use zeroize::DefaultIsZeroes;
 
 impl_inner_point_share!(

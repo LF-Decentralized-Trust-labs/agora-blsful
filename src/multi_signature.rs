@@ -67,9 +67,11 @@ impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for MultiSignature<C> {
 
 impl_from_derivatives_generic!(MultiSignature);
 
-impl<C: BlsSignatureImpl> From<&MultiSignature<C>> for Vec<u8> {
-    fn from(value: &MultiSignature<C>) -> Self {
-        serde_bare::to_vec(value).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&MultiSignature<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &MultiSignature<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

@@ -1,8 +1,10 @@
 macro_rules! impl_from_derivatives_generic {
     ($name:ident) => {
-        impl<C: BlsSignatureImpl> From<$name<C>> for Vec<u8> {
-            fn from(value: $name<C>) -> Self {
-                Vec::from(&value)
+        impl<C: BlsSignatureImpl> TryFrom<$name<C>> for Vec<u8> {
+            type Error = BlsError;
+
+            fn try_from(value: $name<C>) -> Result<Self, Self::Error> {
+                Vec::try_from(&value).map_err(|e| BlsError::SerializationError(e.to_string()))
             }
         }
 
@@ -34,9 +36,11 @@ macro_rules! impl_from_derivatives_generic {
 
 macro_rules! impl_from_derivatives {
     ($name:ident) => {
-        impl From<$name> for Vec<u8> {
-            fn from(value: $name) -> Self {
-                Vec::from(&value)
+        impl TryFrom<$name> for Vec<u8> {
+            type Error = BlsError;
+
+            fn try_from(value: $name) -> Result<Self, Self::Error> {
+                Vec::try_from(&value).map_err(|e| BlsError::SerializationError(e.to_string()))
             }
         }
 
@@ -92,9 +96,7 @@ macro_rules! impl_inner_point_share {
         #[doc = concat!("The share type ", $group_doc)]
         #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
         #[repr(transparent)]
-        pub struct $name(
-            pub DefaultShare<IdentifierPrimeField<Scalar>, ValueGroup<$projective>>,
-        );
+        pub struct $name(pub GroupShare<$projective>);
 
         impl subtle::ConditionallySelectable for $name {
             fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
@@ -205,7 +207,7 @@ macro_rules! impl_inner_point_share {
             type Value = ValueGroup<$projective>;
 
             fn with_identifier_and_value(identifier: Self::Identifier, value: Self::Value) -> Self {
-                Self(DefaultShare { identifier, value })
+                Self((identifier.0, value.0).into())
             }
 
             fn identifier(&self) -> &Self::Identifier {
@@ -298,7 +300,8 @@ macro_rules! impl_signature_enum_traits {
                     (Self::ProofOfPossession(a), Self::ProofOfPossession(b)) => {
                         Self::ProofOfPossession(<$inner>::conditional_select(a, b, choice))
                     }
-                    _ => panic!($panic_msg),
+                    _ if choice.unwrap_u8() == 0 => *a,
+                    _ => *b,
                 }
             }
         }

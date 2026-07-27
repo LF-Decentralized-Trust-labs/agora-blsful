@@ -25,17 +25,20 @@ impl_signature_enum_traits!(
 
 impl_from_derivatives_generic!(SignatureShare);
 
-impl<C: BlsSignatureImpl> From<&SignatureShare<C>> for Vec<u8> {
-    fn from(s: &SignatureShare<C>) -> Self {
+impl<C: BlsSignatureImpl> TryFrom<&SignatureShare<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(s: &SignatureShare<C>) -> BlsResult<Self> {
         match s {
-            SignatureShare::Basic(s) => serde_bare::to_vec(&(SignatureSchemes::Basic, s)).unwrap(),
+            SignatureShare::Basic(s) => serde_bare::to_vec(&(SignatureSchemes::Basic, s)),
             SignatureShare::MessageAugmentation(s) => {
-                serde_bare::to_vec(&(SignatureSchemes::MessageAugmentation, s)).unwrap()
+                serde_bare::to_vec(&(SignatureSchemes::MessageAugmentation, s))
             }
             SignatureShare::ProofOfPossession(s) => {
-                serde_bare::to_vec(&(SignatureSchemes::ProofOfPossession, s)).unwrap()
+                serde_bare::to_vec(&(SignatureSchemes::ProofOfPossession, s))
             }
         }
+        .map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 
@@ -113,7 +116,7 @@ mod tests {
     #[test]
     fn bytes() {
         let s = SignatureShare::<Bls12381G2Impl>::default();
-        let bytes = Vec::<u8>::from(&s);
+        let bytes = Vec::<u8>::try_from(&s).unwrap();
         let s2 = SignatureShare::<Bls12381G2Impl>::try_from(&bytes).unwrap();
         assert_eq!(s, s2);
 
@@ -124,7 +127,7 @@ mod tests {
         assert_eq!(s, s2);
 
         let s = SignatureShare::<Bls12381G1Impl>::default();
-        let bytes = Vec::<u8>::from(&s);
+        let bytes = Vec::<u8>::try_from(&s).unwrap();
         let s2 = SignatureShare::<Bls12381G1Impl>::try_from(&bytes).unwrap();
         assert_eq!(s, s2);
 

@@ -5,6 +5,20 @@ use rand_core::CryptoRng;
 
 const SALT: &[u8] = b"ELGAMAL_BLS12381_XOF:HKDF-SHA2-256_";
 
+/// The ciphertext and response values produced by ElGamal proof generation.
+pub struct ElGamalProofData<G: Group> {
+    /// The first ciphertext component.
+    pub c1: G,
+    /// The second ciphertext component.
+    pub c2: G,
+    /// The message response.
+    pub message_response: G::Scalar,
+    /// The blinder response.
+    pub blinder_response: G::Scalar,
+    /// The Fiat-Shamir challenge.
+    pub challenge: G::Scalar,
+}
+
 /// The methods for implementing ElGamal encryption
 /// and derived ZKPs
 pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>::Scalar> {
@@ -77,20 +91,13 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
     }
 
     /// Encrypt a scalar and generate a ZKP
-    #[allow(clippy::type_complexity)]
     fn seal_scalar_with_proof(
         pk: Self::PublicKey,
         message: <Self::PublicKey as Group>::Scalar,
         generator: Option<Self::PublicKey>,
         blinder: Option<<Self::PublicKey as Group>::Scalar>,
         mut rng: impl CryptoRng,
-    ) -> BlsResult<(
-        Self::PublicKey,
-        Self::PublicKey,
-        <Self::PublicKey as Group>::Scalar,
-        <Self::PublicKey as Group>::Scalar,
-        <Self::PublicKey as Group>::Scalar,
-    )> {
+    ) -> BlsResult<ElGamalProofData<Self::PublicKey>> {
         if pk.is_identity().into() {
             return Err(BlsError::InvalidInputs(
                 "public key is the identity point".to_string(),
@@ -134,7 +141,13 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         debug_assert_eq!(message_proof.is_zero().unwrap_u8(), 0u8);
         let blinder_proof = r + challenge * b;
         debug_assert_eq!(blinder_proof.is_zero().unwrap_u8(), 0u8);
-        Ok((c1, c2, message_proof, blinder_proof, challenge))
+        Ok(ElGamalProofData {
+            c1,
+            c2,
+            message_response: message_proof,
+            blinder_response: blinder_proof,
+            challenge,
+        })
     }
 
     /// Decrypt an ElGamal ciphertext and return the resulting point

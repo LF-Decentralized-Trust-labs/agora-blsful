@@ -173,21 +173,13 @@ impl SecretKeyEnum {
                 Bls12381::G1 => {
                     let ct_sk = SecretKey::from_be_bytes(&sk);
                     let choice = ct_sk.is_some();
-                    let val = if choice.into() {
-                        SecretKeyEnum::G1(ct_sk.unwrap())
-                    } else {
-                        Self::default()
-                    };
+                    let val = SecretKeyEnum::G1(Option::from(ct_sk).unwrap_or_default());
                     CtOption::new(val, choice)
                 }
                 Bls12381::G2 => {
                     let ct_sk = SecretKey::from_be_bytes(&sk);
                     let choice = ct_sk.is_some();
-                    let val = if choice.into() {
-                        SecretKeyEnum::G2(ct_sk.unwrap())
-                    } else {
-                        Self::default()
-                    };
+                    let val = SecretKeyEnum::G2(Option::from(ct_sk).unwrap_or_default());
                     CtOption::new(val, choice)
                 }
             },
@@ -206,21 +198,13 @@ impl SecretKeyEnum {
                 Bls12381::G1 => {
                     let ct_sk = SecretKey::from_le_bytes(&sk);
                     let choice = ct_sk.is_some();
-                    let val = if choice.into() {
-                        SecretKeyEnum::G1(ct_sk.unwrap())
-                    } else {
-                        Self::default()
-                    };
+                    let val = SecretKeyEnum::G1(Option::from(ct_sk).unwrap_or_default());
                     CtOption::new(val, choice)
                 }
                 Bls12381::G2 => {
                     let ct_sk = SecretKey::from_le_bytes(&sk);
                     let choice = ct_sk.is_some();
-                    let val = if choice.into() {
-                        SecretKeyEnum::G2(ct_sk.unwrap())
-                    } else {
-                        Self::default()
-                    };
+                    let val = SecretKeyEnum::G2(Option::from(ct_sk).unwrap_or_default());
                     CtOption::new(val, choice)
                 }
             },

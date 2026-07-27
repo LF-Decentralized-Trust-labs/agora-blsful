@@ -2,6 +2,7 @@ use blsful::inner_types::{G1Projective, G2Projective};
 use blsful::*;
 use rand_core::{Infallible, Rng, SeedableRng, TryRng};
 use rstest::*;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 const TEST_MSG: &[u8] = b"signatures_work";
 
@@ -38,6 +39,58 @@ impl Default for MockRng {
     fn default() -> Self {
         Self(rand_xorshift::XorShiftRng::from_seed([7u8; 16]))
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct Document<T> {
+    value: T,
+}
+
+fn assert_required_format_roundtrips<T>(value: &T)
+where
+    T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug + 'static,
+{
+    let postcard = postcard::to_allocvec(value).expect("postcard serialization succeeds");
+    let postcard_value =
+        postcard::from_bytes::<T>(&postcard).expect("postcard deserialization succeeds");
+    assert_eq!(value, &postcard_value);
+
+    let mut cbor = Vec::new();
+    ciborium::into_writer(value, &mut cbor).expect("CBOR serialization succeeds");
+    let cbor_value =
+        ciborium::from_reader::<T, _>(cbor.as_slice()).expect("CBOR deserialization succeeds");
+    assert_eq!(value, &cbor_value);
+
+    let json = serde_json::to_vec(value).expect("JSON serialization succeeds");
+    let json_value = serde_json::from_slice::<T>(&json).expect("JSON deserialization succeeds");
+    assert_eq!(value, &json_value);
+
+    let toml = toml::to_string(&Document { value }).expect("TOML serialization succeeds");
+    let toml_value = toml::from_str::<Document<T>>(&toml).expect("TOML deserialization succeeds");
+    assert_eq!(value, &toml_value.value);
+
+    let yaml = noyalib::to_string(value).expect("YAML serialization succeeds");
+    let yaml_value = noyalib::from_str::<T>(&yaml).expect("YAML deserialization succeeds");
+    assert_eq!(value, &yaml_value);
+}
+
+#[rstest]
+#[case::g1(Bls12381G1Impl)]
+#[case::g2(Bls12381G2Impl)]
+fn basic_types_serialize_required_formats<
+    C: BlsSignatureImpl + PartialEq + Eq + std::fmt::Debug + 'static,
+>(
+    #[case] _c: C,
+) {
+    let sk = SecretKey::<C>::random(MockRng::default());
+    let pk = sk.public_key();
+    let sig = sk
+        .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
+        .unwrap();
+
+    assert_required_format_roundtrips(&sk);
+    assert_required_format_roundtrips(&pk);
+    assert_required_format_roundtrips(&sig);
 }
 
 #[rstest]
@@ -163,7 +216,8 @@ fn shares_serialize<
         + Eq
         + std::fmt::Debug
         + serde::Serialize
-        + serde::de::DeserializeOwned,
+        + serde::de::DeserializeOwned
+        + 'static,
 >(
     #[case] _c: C,
 ) {
@@ -171,6 +225,8 @@ fn shares_serialize<
     // High number to test for fuzzing
     let sk_shares = sk.split(10, 20).unwrap();
     for share in &sk_shares {
+        assert_required_format_roundtrips(share);
+
         let text = serde_json::to_vec(&share).unwrap_or_else(|e| panic!("{e:?}"));
         let share2 =
             serde_json::from_slice::<SecretKeyShare<C>>(&text).unwrap_or_else(|e| panic!("{e:?}"));
@@ -182,6 +238,7 @@ fn shares_serialize<
         assert_eq!(share, &share2);
 
         let pks = share.public_key().unwrap();
+        assert_required_format_roundtrips(&pks);
         let text = serde_json::to_vec(&pks).unwrap_or_else(|e| panic!("{e:?}"));
         let pks2 =
             serde_json::from_slice::<PublicKeyShare<C>>(&text).unwrap_or_else(|e| panic!("{e:?}"));
@@ -190,6 +247,7 @@ fn shares_serialize<
         let sgs = share
             .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
             .unwrap();
+        assert_required_format_roundtrips(&sgs);
         let res = serde_json::to_vec(&sgs);
         assert!(res.is_ok());
         let text = res.unwrap();

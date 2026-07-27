@@ -19,8 +19,9 @@ pub fn scalar_from_hkdf_bytes(salt: Option<&[u8]>, ikm: &[u8]) -> Scalar {
     let mut s = Scalar::ZERO;
     // Odds of this happening are extremely low but check anyway
     while s == Scalar::ZERO {
-        // Unwrap allowed since 48 is a valid length
-        h.expand(&INFO, &mut output).unwrap();
+        if h.expand(&INFO, &mut output).is_err() {
+            return Scalar::ZERO;
+        }
         s = Scalar::from_okm(&output);
     }
     s
@@ -55,9 +56,7 @@ pub fn encode_message_with_len(message: &[u8], min_len: usize) -> Vec<u8> {
 
 pub fn decode_message_with_len(encoded: &[u8]) -> Option<Vec<u8>> {
     let overhead = uint_zigzag::Uint::peek(encoded)?;
-    // If peek succeeds then try_from will also, so unwrap is okay.
-    // peek returns the amount actually used whereas try_from does not.
-    let len = uint_zigzag::Uint::try_from(&encoded[..overhead]).unwrap().0 as usize;
+    let len = uint_zigzag::Uint::try_from(&encoded[..overhead]).ok()?.0 as usize;
     (len <= encoded.len() - overhead).then(|| encoded[overhead..overhead + len].to_vec())
 }
 
@@ -100,7 +99,12 @@ fn scalar_to_bytes<C: BlsSignatureImpl, const N: usize>(
     if big_endian {
         ptr.reverse();
     }
-    <[u8; N]>::try_from(ptr).unwrap()
+    let mut output = [0u8; N];
+    output
+        .iter_mut()
+        .zip(ptr.iter())
+        .for_each(|(output, input)| *output = *input);
+    output
 }
 
 pub fn scalar_to_be_bytes<C: BlsSignatureImpl, const N: usize>(

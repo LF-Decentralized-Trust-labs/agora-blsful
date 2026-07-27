@@ -50,9 +50,11 @@ pub struct TimeCryptCiphertext<C: BlsSignatureImpl> {
     pub scheme: SignatureSchemes,
 }
 
-impl<C: BlsSignatureImpl> From<&TimeCryptCiphertext<C>> for Vec<u8> {
-    fn from(value: &TimeCryptCiphertext<C>) -> Self {
-        serde_bare::to_vec(value).expect("failed to serialize time crypt ciphertext")
+impl<C: BlsSignatureImpl> TryFrom<&TimeCryptCiphertext<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &TimeCryptCiphertext<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

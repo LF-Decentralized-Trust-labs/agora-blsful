@@ -65,9 +65,11 @@ impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for AggregateSignature<C> {
 
 impl_from_derivatives_generic!(AggregateSignature);
 
-impl<C: BlsSignatureImpl> From<&AggregateSignature<C>> for Vec<u8> {
-    fn from(value: &AggregateSignature<C>) -> Self {
-        serde_bare::to_vec(value).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&AggregateSignature<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &AggregateSignature<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

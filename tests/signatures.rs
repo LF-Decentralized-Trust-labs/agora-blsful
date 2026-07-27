@@ -80,7 +80,7 @@ fn dynamic_facade_works() {
         let pk2 = PublicKeyEnum::try_from(pk_bytes.as_slice()).unwrap();
         assert_eq!(pk, pk2);
 
-        let sig_bytes = Vec::from(&sig);
+        let sig_bytes = Vec::try_from(&sig).unwrap();
         let sig2 = SignatureEnum::try_from(sig_bytes.as_slice()).unwrap();
         assert_eq!(sig, sig2);
     }

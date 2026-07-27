@@ -195,13 +195,16 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
 
     /// Encrypt a message using ElGamal and generate a proof
     pub fn encrypt_key_el_gamal_with_proof(&self, sk: &SecretKey<C>) -> BlsResult<ElGamalProof<C>> {
-        let (c1, c2, message_proof, blinder_proof, challenge) =
+        let proof =
             <C as BlsElGamal>::seal_scalar_with_proof(self.0, sk.0, None, None, get_crypto_rng())?;
         Ok(ElGamalProof {
-            ciphertext: ElGamalCiphertext { c1, c2 },
-            message_proof,
-            blinder_proof,
-            challenge,
+            ciphertext: ElGamalCiphertext {
+                c1: proof.c1,
+                c2: proof.c2,
+            },
+            message_proof: proof.message_response,
+            blinder_proof: proof.blinder_response,
+            challenge: proof.challenge,
         })
     }
 

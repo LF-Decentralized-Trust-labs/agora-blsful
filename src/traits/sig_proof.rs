@@ -27,12 +27,14 @@ pub trait BlsSignatureProof:
     }
 
     /// Create the timestamp based challenge for `y`
-    fn generate_timestamp_based_y(u: Self::Signature) -> (<Self::Signature as Group>::Scalar, u64) {
+    fn generate_timestamp_based_y(
+        u: Self::Signature,
+    ) -> BlsResult<(<Self::Signature as Group>::Scalar, u64)> {
         let t = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .map_err(|e| BlsError::InvalidInputs(e.to_string()))?
             .as_millis() as u64;
-        (Self::compute_y(u, t), t)
+        Ok((Self::compute_y(u, t), t))
     }
 
     /// Shared methods for generating `y` challenge
@@ -93,7 +95,7 @@ pub trait BlsSignatureProof:
         debug_assert_eq!(a.is_identity().unwrap_u8(), 0u8);
         let u = a * x;
         debug_assert_eq!(u.is_identity().unwrap_u8(), 0u8);
-        let (y, t) = Self::generate_timestamp_based_y(u);
+        let (y, t) = Self::generate_timestamp_based_y(u)?;
         debug_assert_eq!(y.is_zero().unwrap_u8(), 0u8);
         let v = sig * (x + y);
         debug_assert_eq!(v.is_identity().unwrap_u8(), 0u8);
@@ -156,7 +158,10 @@ pub trait BlsSignatureProof:
         if let Some(tt) = timeout_ms {
             let now = SystemTime::now();
             let since = UNIX_EPOCH + Duration::from_millis(t);
-            let elapsed = now.duration_since(since).unwrap().as_millis() as u64;
+            let elapsed = now
+                .duration_since(since)
+                .map_err(|_| BlsError::InvalidProof)?
+                .as_millis() as u64;
             if elapsed > tt {
                 return Err(BlsError::InvalidProof);
             }

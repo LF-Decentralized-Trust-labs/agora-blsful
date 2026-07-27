@@ -78,16 +78,19 @@ impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for ProofCommitment<C>
             (Self::ProofOfPossession(a), Self::ProofOfPossession(b)) => {
                 Self::ProofOfPossession(<C as Pairing>::Signature::conditional_select(a, b, choice))
             }
-            _ => panic!("Cannot conditional select between different proof commitments"),
+            _ if choice.unwrap_u8() == 0 => *a,
+            _ => *b,
         }
     }
 }
 
 impl_from_derivatives_generic!(ProofCommitment);
 
-impl<C: BlsSignatureImpl> From<&ProofCommitment<C>> for Vec<u8> {
-    fn from(value: &ProofCommitment<C>) -> Self {
-        serde_bare::to_vec(value).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&ProofCommitment<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ProofCommitment<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

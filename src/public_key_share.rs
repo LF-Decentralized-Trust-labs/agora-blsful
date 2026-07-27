@@ -35,9 +35,11 @@ impl<C: BlsSignatureImpl> Display for PublicKeyShare<C> {
 
 impl_from_derivatives_generic!(PublicKeyShare);
 
-impl<C: BlsSignatureImpl> From<&PublicKeyShare<C>> for Vec<u8> {
-    fn from(pk: &PublicKeyShare<C>) -> Vec<u8> {
-        serde_bare::to_vec(&pk.0).unwrap()
+impl<C: BlsSignatureImpl> TryFrom<&PublicKeyShare<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(pk: &PublicKeyShare<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(&pk.0).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 
@@ -99,7 +101,7 @@ mod tests {
     #[test]
     fn bytes() {
         let pk = PublicKeyShare::<Bls12381G2Impl>::default();
-        let bytes = Vec::<u8>::from(&pk);
+        let bytes = Vec::<u8>::try_from(&pk).unwrap();
         let pk2 = PublicKeyShare::try_from(&bytes).unwrap();
         assert_eq!(pk, pk2);
 

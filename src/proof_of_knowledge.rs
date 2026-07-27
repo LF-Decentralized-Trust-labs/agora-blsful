@@ -105,14 +105,17 @@ impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for ProofOfKnowledge<C
                 u: <C as Pairing>::Signature::conditional_select(u1, u2, choice),
                 v: <C as Pairing>::Signature::conditional_select(v1, v2, choice),
             },
-            _ => panic!("Signature::conditional_select: mismatched variants"),
+            _ if choice.unwrap_u8() == 0 => *a,
+            _ => *b,
         }
     }
 }
 
-impl<C: BlsSignatureImpl> From<&ProofOfKnowledge<C>> for Vec<u8> {
-    fn from(value: &ProofOfKnowledge<C>) -> Self {
-        serde_bare::to_vec(value).expect("Failed to serialize ProofOfKnowledge")
+impl<C: BlsSignatureImpl> TryFrom<&ProofOfKnowledge<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ProofOfKnowledge<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 
@@ -226,9 +229,11 @@ impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for ProofOfKnowledgeTi
     }
 }
 
-impl<C: BlsSignatureImpl> From<&ProofOfKnowledgeTimestamp<C>> for Vec<u8> {
-    fn from(value: &ProofOfKnowledgeTimestamp<C>) -> Self {
-        serde_bare::to_vec(value).expect("Failed to serialize ProofOfKnowledgeTimestamp")
+impl<C: BlsSignatureImpl> TryFrom<&ProofOfKnowledgeTimestamp<C>> for Vec<u8> {
+    type Error = BlsError;
+
+    fn try_from(value: &ProofOfKnowledgeTimestamp<C>) -> BlsResult<Self> {
+        serde_bare::to_vec(value).map_err(|e| BlsError::SerializationError(e.to_string()))
     }
 }
 

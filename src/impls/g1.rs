@@ -28,7 +28,7 @@ impl HashToScalar for Bls12381G1Impl {
 }
 
 impl Pairing for Bls12381G1Impl {
-    type SecretKeyShare = DefaultShare<IdentifierPrimeField<Scalar>, IdentifierPrimeField<Scalar>>;
+    type SecretKeyShare = PrimeFieldShare<Scalar>;
     type PublicKey = G2Projective;
     type PublicKeyShare = InnerPointShareG2;
     type Signature = G1Projective;
