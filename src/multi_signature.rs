@@ -1,7 +1,6 @@
-use crate::impls::inner_types::*;
 use crate::*;
 
-/// Represents a BLS signature for multiple signatures that signed different messages
+/// A BLS multi-signature combining signatures over the same message.
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MultiSignature<C: BlsSignatureImpl> {
     /// The basic signature scheme
@@ -30,11 +29,7 @@ impl<C: BlsSignatureImpl> Default for MultiSignature<C> {
     }
 }
 
-impl_signature_enum_traits!(
-    MultiSignature,
-    <C as Pairing>::Signature,
-    "Signature::conditional_select: mismatched variants"
-);
+impl_signature_enum_traits!(MultiSignature, <C as Pairing>::Signature);
 
 impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for MultiSignature<C> {
     type Error = BlsError;
@@ -43,24 +38,21 @@ impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for MultiSignature<C> {
         if sigs.len() < 2 {
             return Err(BlsError::InvalidSignature);
         }
-        let mut g = <C as Pairing>::Signature::identity();
+        let first = &sigs[0];
+        if matches!(first, Signature::MessageAugmentation(_)) {
+            return Err(BlsError::InvalidSignatureScheme);
+        }
+        let mut aggregate = *first.as_raw_value();
         for s in &sigs[1..] {
-            if !s.same_scheme(&sigs[0]) {
+            if !s.same_scheme(first) {
                 return Err(BlsError::InvalidSignatureScheme);
             }
-            let ss = match s {
-                Signature::Basic(sig) => sig,
-                Signature::MessageAugmentation(_) => {
-                    return Err(BlsError::InvalidSignatureScheme);
-                }
-                Signature::ProofOfPossession(sig) => sig,
-            };
-            g += ss;
+            aggregate += s.as_raw_value();
         }
-        match sigs[0] {
-            Signature::Basic(s) => Ok(Self::Basic(g + s)),
-            Signature::MessageAugmentation(s) => Ok(Self::MessageAugmentation(g + s)),
-            Signature::ProofOfPossession(s) => Ok(Self::ProofOfPossession(g + s)),
+        match first {
+            Signature::Basic(_) => Ok(Self::Basic(aggregate)),
+            Signature::MessageAugmentation(_) => Err(BlsError::InvalidSignatureScheme),
+            Signature::ProofOfPossession(_) => Ok(Self::ProofOfPossession(aggregate)),
         }
     }
 }

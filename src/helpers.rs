@@ -37,11 +37,6 @@ pub fn scalar_from_hkdf_bytes(salt: Option<&[u8]>, ikm: &[u8]) -> Scalar {
     }
 }
 
-pub fn byte_xor(arr1: &[u8], arr2: &[u8]) -> Vec<u8> {
-    assert_eq!(arr1.len(), arr2.len(), "XOR inputs must have equal lengths");
-    arr1.iter().zip(arr2.iter()).map(|(a, b)| a ^ b).collect()
-}
-
 pub fn shake128_xor(seed: &[u8], input: &[u8]) -> Vec<u8> {
     let mut hasher = Shake128::default();
     hasher.update(seed);

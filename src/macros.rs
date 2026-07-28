@@ -249,10 +249,8 @@ macro_rules! impl_inner_point_share {
 /// Parameters:
 /// - `$name`: the enum identifier.
 /// - `$inner`: the inner value type (`<C as Pairing>::Signature` etc).
-/// - `$panic_msg`: the exact panic message for the mismatched-variant arm,
-///   preserved verbatim per enum.
 macro_rules! impl_signature_enum_traits {
-    ($name:ident, $inner:ty, $panic_msg:literal) => {
+    ($name:ident, $inner:ty) => {
         impl<C: BlsSignatureImpl> Display for $name<C> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 match self {

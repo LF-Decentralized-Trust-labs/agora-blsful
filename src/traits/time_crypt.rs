@@ -103,12 +103,14 @@ pub trait BlsTimeCrypt:
 
     /// Compute the `V` value
     fn compute_v(k_tick: Self::PairingResult, alpha_or_v: &[u8]) -> [u8; 32] {
+        assert_eq!(alpha_or_v.len(), 32, "time-lock XOR input must be 32 bytes");
         // Hℓ(K)
         let output = Sha256::digest(k_tick.to_bytes().as_ref());
         // V = Hℓ(K') ⊕ \alpha
-        let result = byte_xor(alpha_or_v, &output);
         let mut value = [0u8; 32];
-        value.copy_from_slice(&result);
+        for (value, (alpha, hash)) in value.iter_mut().zip(alpha_or_v.iter().zip(output.iter())) {
+            *value = alpha ^ hash;
+        }
         value
     }
 

@@ -17,11 +17,7 @@ impl<C: BlsSignatureImpl> Default for SignatureShare<C> {
     }
 }
 
-impl_signature_enum_traits!(
-    SignatureShare,
-    <C as Pairing>::SignatureShare,
-    "SignatureShare::conditional_select: mismatched variants"
-);
+impl_signature_enum_traits!(SignatureShare, <C as Pairing>::SignatureShare);
 
 impl_from_derivatives_generic!(SignatureShare);
 

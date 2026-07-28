@@ -43,7 +43,7 @@ impl TimeCryptCiphertextEnum {
     }
 }
 
-/// The ciphertext output from time lock encryption
+/// A time-lock encryption ciphertext.
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TimeCryptCiphertext<C: BlsSignatureImpl> {
     /// The `u` component
@@ -83,7 +83,7 @@ impl<C: BlsSignatureImpl> TimeCryptCiphertext<C> {
         self.scheme
     }
 
-    /// Decrypt the time lock ciphertext using a signature over an identifier
+    /// Decrypt the time-lock ciphertext using a signature over an identifier.
     pub fn decrypt(&self, sig: &Signature<C>) -> CtOption<Vec<u8>> {
         let (s, valid) = match (sig, self.scheme) {
             (Signature::Basic(s), SignatureSchemes::Basic) => (*s, 1u8.into()),

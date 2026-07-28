@@ -1,7 +1,7 @@
-use crate::impls::inner_types::*;
 use crate::*;
+use std::collections::HashMap;
 
-/// Represents a BLS signature for multiple signatures that signed different messages
+/// A BLS aggregate signature combining signatures over different messages.
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum AggregateSignature<C: BlsSignatureImpl> {
     /// The basic signature scheme
@@ -30,11 +30,7 @@ impl<C: BlsSignatureImpl> Default for AggregateSignature<C> {
     }
 }
 
-impl_signature_enum_traits!(
-    AggregateSignature,
-    <C as Pairing>::Signature,
-    "Signature::conditional_select: mismatched variants"
-);
+impl_signature_enum_traits!(AggregateSignature, <C as Pairing>::Signature);
 
 impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for AggregateSignature<C> {
     type Error = BlsError;
@@ -43,22 +39,18 @@ impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for AggregateSignature<C> {
         if sigs.len() < 2 {
             return Err(BlsError::InvalidSignature);
         }
-        let mut g = <C as Pairing>::Signature::identity();
+        let first = &sigs[0];
+        let mut aggregate = *first.as_raw_value();
         for s in &sigs[1..] {
-            if !s.same_scheme(&sigs[0]) {
+            if !s.same_scheme(first) {
                 return Err(BlsError::InvalidSignatureScheme);
             }
-            let ss = match s {
-                Signature::Basic(sig) => sig,
-                Signature::MessageAugmentation(sig) => sig,
-                Signature::ProofOfPossession(sig) => sig,
-            };
-            g += ss;
+            aggregate += s.as_raw_value();
         }
-        match sigs[0] {
-            Signature::Basic(s) => Ok(Self::Basic(g + s)),
-            Signature::MessageAugmentation(s) => Ok(Self::MessageAugmentation(g + s)),
-            Signature::ProofOfPossession(s) => Ok(Self::ProofOfPossession(g + s)),
+        match first {
+            Signature::Basic(_) => Ok(Self::Basic(aggregate)),
+            Signature::MessageAugmentation(_) => Ok(Self::MessageAugmentation(aggregate)),
+            Signature::ProofOfPossession(_) => Ok(Self::ProofOfPossession(aggregate)),
         }
     }
 }
@@ -91,26 +83,48 @@ impl<C: BlsSignatureImpl> AggregateSignature<C> {
         }
     }
 
-    /// Accumulate multiple signatures into a single signature
-    /// Verify fails if any signed message is a duplicate
+    /// Accumulate multiple signatures into one aggregate signature.
     pub fn from_signatures<B: AsRef<[Signature<C>]>>(signatures: B) -> BlsResult<Self> {
         Self::try_from(signatures.as_ref())
     }
 
-    /// Verify the aggregated signature using the public keys
+    /// Verify the aggregate signature.
+    ///
+    /// Basic-scheme verification rejects duplicate messages as required by that
+    /// ciphersuite. Message Augmentation and Proof of Possession permit them.
     pub fn verify<B: AsRef<[u8]>>(&self, data: &[(PublicKey<C>, B)]) -> BlsResult<()> {
         if data.len() < 2 {
             return Err(BlsError::InvalidInputs(
                 "at least two public key and message pairs are required".to_string(),
             ));
         }
-        let ii = data.iter().map(|(pk, m)| (pk.0, m));
         match self {
-            Self::Basic(sig) => <C as BlsSignatureBasic>::aggregate_verify(ii, *sig),
-            Self::MessageAugmentation(sig) => {
-                <C as BlsSignatureMessageAugmentation>::aggregate_verify(ii, *sig)
+            Self::Basic(sig) => {
+                let mut messages = HashMap::with_capacity(data.len());
+                for (index, (_, message)) in data.iter().enumerate() {
+                    if let Some(previous) = messages.insert(message.as_ref(), index) {
+                        return Err(BlsError::InvalidInputs(format!(
+                            "duplicate messages detected at {} and {}",
+                            previous, index
+                        )));
+                    }
+                }
+                <C as BlsSignatureCore>::core_aggregate_verify(
+                    data.iter().map(|(pk, message)| (pk.0, message.as_ref())),
+                    *sig,
+                    <C as BlsSignatureBasic>::DST,
+                )
             }
-            Self::ProofOfPossession(sig) => <C as BlsSignaturePop>::aggregate_verify(ii, *sig),
+            Self::MessageAugmentation(sig) => {
+                <C as BlsSignatureMessageAugmentation>::aggregate_verify(
+                    data.iter().map(|(pk, message)| (pk.0, message)),
+                    *sig,
+                )
+            }
+            Self::ProofOfPossession(sig) => <C as BlsSignaturePop>::aggregate_verify(
+                data.iter().map(|(pk, message)| (pk.0, message)),
+                *sig,
+            ),
         }
     }
 }

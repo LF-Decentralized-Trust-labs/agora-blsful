@@ -44,8 +44,9 @@ pub trait BlsSignatureBasic: BlsSignatureCore + BlsMultiSignature + BlsMultiKey 
         B: AsRef<[u8]>,
     {
         // check uniqueness
-        let mut messages = HashMap::new();
-        let mut inputs = Vec::new();
+        let capacity = pks.size_hint().0;
+        let mut messages = HashMap::with_capacity(capacity);
+        let mut inputs = Vec::with_capacity(capacity);
         for (i, (pk, m)) in pks.enumerate() {
             if let Some(old) = messages.insert(m.as_ref().to_vec(), i) {
                 return Err(BlsError::InvalidInputs(format!(

@@ -13,11 +13,9 @@ pub struct SignDecryptionShare<C: BlsSignatureImpl>(pub <C as Pairing>::PublicKe
 
 impl<C: BlsSignatureImpl> Clone for SignDecryptionShare<C> {
     fn clone(&self) -> Self {
-        *self
+        Self(self.0)
     }
 }
-
-impl<C: BlsSignatureImpl> Copy for SignDecryptionShare<C> {}
 
 impl<C: BlsSignatureImpl> fmt::Debug for SignDecryptionShare<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -45,7 +43,7 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for SignDecryptionShare<C> {
 impl_from_derivatives_generic!(SignDecryptionShare);
 
 impl<C: BlsSignatureImpl> SignDecryptionShare<C> {
-    /// Verify the signcrypt decryption share with the corresponding public key and ciphertext
+    /// Verify the signcryption decryption share against its public-key share and ciphertext.
     pub fn verify(&self, pks: &PublicKeyShare<C>, sig: &SignCryptCiphertext<C>) -> BlsResult<()> {
         if self.0.identifier() != pks.0.identifier() {
             return Err(BlsError::InvalidDecryptionShare);

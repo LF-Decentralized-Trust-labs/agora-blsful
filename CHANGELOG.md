@@ -14,8 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `scheme` accessors to signcryption and time-lock ciphertexts.
 - Add `scheme` accessors to proof commitments and proofs of knowledge.
 - Make verification APIs consistently borrow public keys.
-- Make copyable decryption shares and reconstructed decryption keys implement
-  `Copy`.
 - Reject empty signature-share collections instead of panicking.
 - Reject unknown signature scheme strings and wire values instead of silently
   treating them as proof-of-possession.
@@ -40,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double-wrapping generated serialization errors.
 - Centralize signature-scheme domain selection across encryption, decryption,
   ciphertext validation, and decryption-share verification.
+- Eliminate a temporary heap allocation from the fixed-size time-lock XOR path.
+- Avoid an identity-point addition when constructing aggregate and
+  multi-signatures, and pre-size aggregate-verification collections.
+- Clarify and test scheme-specific duplicate-message behavior during aggregate
+  verification.
+- Eliminate per-message byte allocations from Basic aggregate verification when
+  using the public slice-based API.
 - Verify share identifiers match before accepting signature or decryption shares.
 - Use the ciphertext's actual signature-scheme domain when verifying signcryption
   decryption shares.

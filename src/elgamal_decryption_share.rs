@@ -12,11 +12,9 @@ pub struct ElGamalDecryptionShare<C: BlsSignatureImpl>(
 
 impl<C: BlsSignatureImpl> Clone for ElGamalDecryptionShare<C> {
     fn clone(&self) -> Self {
-        *self
+        Self(self.0)
     }
 }
-
-impl<C: BlsSignatureImpl> Copy for ElGamalDecryptionShare<C> {}
 
 impl<C: BlsSignatureImpl> fmt::Debug for ElGamalDecryptionShare<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -54,11 +52,9 @@ pub struct ElGamalDecryptionKey<C: BlsSignatureImpl>(
 
 impl<C: BlsSignatureImpl> Clone for ElGamalDecryptionKey<C> {
     fn clone(&self) -> Self {
-        *self
+        Self(self.0)
     }
 }
-
-impl<C: BlsSignatureImpl> Copy for ElGamalDecryptionKey<C> {}
 
 impl<C: BlsSignatureImpl> TryFrom<&ElGamalDecryptionKey<C>> for Vec<u8> {
     type Error = BlsError;
@@ -80,12 +76,12 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ElGamalDecryptionKey<C> {
 impl_from_derivatives_generic!(ElGamalDecryptionKey);
 
 impl<C: BlsSignatureImpl> ElGamalDecryptionKey<C> {
-    /// Decrypt signcrypt ciphertext
+    /// Decrypt an ElGamal ciphertext.
     pub fn decrypt(&self, ciphertext: &ElGamalCiphertext<C>) -> <C as Pairing>::PublicKey {
         ciphertext.c2 - self.0
     }
 
-    /// Combine decryption shares into a signcrypt decryption key
+    /// Combine decryption shares into an ElGamal decryption key.
     pub fn from_shares(shares: &[ElGamalDecryptionShare<C>]) -> BlsResult<Self> {
         if shares.len() < 2 {
             return Err(BlsError::InvalidInputs(

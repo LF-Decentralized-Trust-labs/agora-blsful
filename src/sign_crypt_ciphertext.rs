@@ -33,7 +33,7 @@ impl SignCryptCiphertextEnum {
         }
     }
 
-    /// Decrypt the signcrypt ciphertext with a matching dynamic secret key.
+    /// Decrypt the signcryption ciphertext with a matching dynamic secret key.
     pub fn decrypt(&self, sk: &SecretKeyEnum) -> CtOption<Vec<u8>> {
         match (self, sk) {
             (Self::G1(ciphertext), SecretKeyEnum::G1(sk)) => ciphertext.decrypt(sk),
@@ -51,7 +51,7 @@ impl SignCryptCiphertextEnum {
     }
 }
 
-/// The ciphertext output from sign crypt encryption
+/// A signcryption ciphertext.
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SignCryptCiphertext<C: BlsSignatureImpl> {
     /// The `u` component
@@ -137,8 +137,7 @@ impl<C: BlsSignatureImpl> SignCryptCiphertext<C> {
     }
 }
 
-/// A Signcrypt decryption key where the secret key is hidden or combined from shares
-/// that can decrypt ciphertext
+/// A signcryption decryption key derived from a secret key or combined shares.
 #[derive(Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignCryptDecryptionKey<C: BlsSignatureImpl>(
     #[serde(serialize_with = "traits::public_key::serialize::<C, _>")]
@@ -154,11 +153,9 @@ impl<C: BlsSignatureImpl> fmt::Debug for SignCryptDecryptionKey<C> {
 
 impl<C: BlsSignatureImpl> Clone for SignCryptDecryptionKey<C> {
     fn clone(&self) -> Self {
-        *self
+        Self(self.0)
     }
 }
-
-impl<C: BlsSignatureImpl> Copy for SignCryptDecryptionKey<C> {}
 
 impl<C: BlsSignatureImpl> TryFrom<&SignCryptDecryptionKey<C>> for Vec<u8> {
     type Error = BlsError;
@@ -180,7 +177,7 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for SignCryptDecryptionKey<C> {
 impl_from_derivatives_generic!(SignCryptDecryptionKey);
 
 impl<C: BlsSignatureImpl> SignCryptDecryptionKey<C> {
-    /// Decrypt signcrypt ciphertext
+    /// Decrypt a signcryption ciphertext.
     pub fn decrypt(&self, ciphertext: &SignCryptCiphertext<C>) -> CtOption<Vec<u8>> {
         let dst = signature_dst::<C>(ciphertext.scheme);
 
@@ -188,7 +185,7 @@ impl<C: BlsSignatureImpl> SignCryptDecryptionKey<C> {
         <C as BlsSignCrypt>::decrypt(&ciphertext.v, self.0, choice)
     }
 
-    /// Combine decryption shares into a signcrypt decryption key
+    /// Combine decryption shares into a signcryption decryption key.
     pub fn from_shares(shares: &[SignDecryptionShare<C>]) -> BlsResult<Self> {
         if shares.len() < 2 {
             return Err(BlsError::InvalidInputs(

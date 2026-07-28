@@ -168,7 +168,7 @@ fn multisigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
 #[rstest]
 #[case::g1(Bls12381G1Impl)]
 #[case::g2(Bls12381G2Impl)]
-fn aggegratesigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
+fn aggregate_signatures_work<C: BlsSignatureImpl>(#[case] _c: C) {
     let sk1 = SecretKey::<C>::new();
     let sk2 = SecretKey::<C>::new();
     let sk3 = SecretKey::<C>::new();
@@ -206,6 +206,21 @@ fn aggegratesigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
         .sign(SignatureSchemes::MessageAugmentation, TEST_MSG)
         .unwrap();
 
+    let asig = AggregateSignature::from_signatures([sig1, sig2, sig3]).unwrap();
+    assert!(
+        asig.verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])
+            .is_ok()
+    );
+
+    let sig1 = sk1
+        .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
+        .unwrap();
+    let sig2 = sk2
+        .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
+        .unwrap();
+    let sig3 = sk3
+        .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
+        .unwrap();
     let asig = AggregateSignature::from_signatures([sig1, sig2, sig3]).unwrap();
     assert!(
         asig.verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])

@@ -7,7 +7,7 @@ use rand_core::CryptoRng;
 use subtle::{Choice, ConditionallySelectable, CtOption};
 use vsss_rs::*;
 
-/// The methods for implementing SignCryption
+/// Methods for implementing signcryption.
 /// as described in
 /// <https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.119.1717&rep=rep1&type=pdf>
 pub trait BlsSignCrypt:
@@ -144,7 +144,7 @@ pub trait BlsSignCrypt:
         Self::hash_to_point(t.as_slice(), dst)
     }
 
-    /// Create a sign crypt decryption share
+    /// Create a signcryption decryption share.
     ///
     /// The math is as follows
     /// 1. sig = u * sks

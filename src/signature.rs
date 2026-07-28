@@ -111,11 +111,7 @@ impl<C: BlsSignatureImpl> Default for Signature<C> {
     }
 }
 
-impl_signature_enum_traits!(
-    Signature,
-    <C as Pairing>::Signature,
-    "Signature::conditional_select: mismatched variants"
-);
+impl_signature_enum_traits!(Signature, <C as Pairing>::Signature);
 
 impl_from_derivatives_generic!(Signature);
 
