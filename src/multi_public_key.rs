@@ -38,8 +38,10 @@ impl<C: BlsSignatureImpl> subtle::ConditionallySelectable for MultiPublicKey<C> 
     }
 }
 
-impl<C: BlsSignatureImpl> From<&[PublicKey<C>]> for MultiPublicKey<C> {
-    fn from(keys: &[PublicKey<C>]) -> Self {
+impl<C: BlsSignatureImpl> TryFrom<&[PublicKey<C>]> for MultiPublicKey<C> {
+    type Error = BlsError;
+
+    fn try_from(keys: &[PublicKey<C>]) -> BlsResult<Self> {
         Self::from_public_keys(keys)
     }
 }
@@ -76,9 +78,15 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for MultiPublicKey<C> {
 
 impl<C: BlsSignatureImpl> MultiPublicKey<C> {
     /// Accumulate multiple public keys into a single public key
-    pub fn from_public_keys<B: AsRef<[PublicKey<C>]>>(keys: B) -> Self {
-        Self(<C as BlsMultiKey>::from_public_keys(
-            keys.as_ref().iter().map(|k| k.0),
-        ))
+    pub fn from_public_keys<B: AsRef<[PublicKey<C>]>>(keys: B) -> BlsResult<Self> {
+        let keys = keys.as_ref();
+        if keys.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two public keys are required".to_string(),
+            ));
+        }
+        Ok(Self(<C as BlsMultiKey>::from_public_keys(
+            keys.iter().map(|k| k.0),
+        )))
     }
 }

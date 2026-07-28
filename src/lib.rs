@@ -87,9 +87,7 @@ impl_inner_point_share!(
     G1Projective,
     G1Affine,
     [.identifier.0],
-    [.value.0],
-    49,
-    48
+    [.value.0]
 );
 
 impl_inner_point_share!(
@@ -98,9 +96,7 @@ impl_inner_point_share!(
     G2Projective,
     G2Affine,
     [.identifier],
-    [.value],
-    97,
-    96
+    [.value]
 );
 
 impl DefaultIsZeroes for InnerPointShareG2 {}

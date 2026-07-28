@@ -45,6 +45,14 @@ impl TryFrom<&[u8]> for SignatureEnum {
 impl_from_derivatives!(SignatureEnum);
 
 impl SignatureEnum {
+    /// Return the signature scheme used to create this signature.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::G1(signature) => signature.scheme(),
+            Self::G2(signature) => signature.scheme(),
+        }
+    }
+
     /// Return the concrete BLS12-381 signature group for this signature.
     pub fn curve(&self) -> Bls12381 {
         match self {
@@ -123,12 +131,21 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for Signature<C> {
     type Error = BlsError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        serde_bare::from_slice(value).map_err(|e| BlsError::InvalidInputs(e.to_string()))
+        serde_bare::from_slice(value).map_err(BlsError::from)
     }
 }
 
 impl<C: BlsSignatureImpl> Signature<C> {
-    /// Verify the signature using the public key
+    /// Return the signature scheme used to create this signature.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::Basic(_) => SignatureSchemes::Basic,
+            Self::MessageAugmentation(_) => SignatureSchemes::MessageAugmentation,
+            Self::ProofOfPossession(_) => SignatureSchemes::ProofOfPossession,
+        }
+    }
+
+    /// Verify the signature using the public key.
     pub fn verify<B: AsRef<[u8]>>(&self, pk: &PublicKey<C>, msg: B) -> BlsResult<()> {
         match self {
             Self::Basic(sig) => <C as BlsSignatureBasic>::verify(pk.0, *sig, msg),
@@ -151,7 +168,15 @@ impl<C: BlsSignatureImpl> Signature<C> {
 
     /// Create a signature from shares
     pub fn from_shares(shares: &[SignatureShare<C>]) -> BlsResult<Self> {
-        if !shares.iter().skip(1).all(|s| s.same_scheme(&shares[0])) {
+        if shares.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two signature shares are required".to_string(),
+            ));
+        }
+        let Some(first) = shares.first() else {
+            unreachable!("share length was checked above");
+        };
+        if !shares.iter().skip(1).all(|s| s.same_scheme(first)) {
             return Err(BlsError::InvalidSignatureScheme);
         }
         let points = shares
@@ -159,7 +184,7 @@ impl<C: BlsSignatureImpl> Signature<C> {
             .map(|s| *s.as_raw_value())
             .collect::<Vec<<C as Pairing>::SignatureShare>>();
         let sig = <C as BlsSignatureCore>::core_combine_signature_shares(&points)?;
-        match shares[0] {
+        match first {
             SignatureShare::Basic(_) => Ok(Self::Basic(sig)),
             SignatureShare::MessageAugmentation(_) => Ok(Self::MessageAugmentation(sig)),
             SignatureShare::ProofOfPossession(_) => Ok(Self::ProofOfPossession(sig)),
@@ -216,5 +241,13 @@ mod tests {
         let res_sig_pop2 = Signature::<C>::try_from(test);
         assert!(res_sig_pop2.is_ok());
         assert_eq!(sig_pop, res_sig_pop2.unwrap());
+    }
+
+    #[test]
+    fn rejects_undersized_share_sets() {
+        let result = Signature::<Bls12381G1Impl>::from_shares(&[]);
+        assert!(matches!(result, Err(BlsError::InvalidInputs(_))));
+        let result = Signature::<Bls12381G1Impl>::from_shares(&[SignatureShare::default()]);
+        assert!(matches!(result, Err(BlsError::InvalidInputs(_))));
     }
 }

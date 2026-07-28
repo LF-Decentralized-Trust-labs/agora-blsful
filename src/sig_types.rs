@@ -1,7 +1,7 @@
 use crate::BlsError;
 
 /// The BLS signature algorithm schemes
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
 #[repr(u8)]
 pub enum SignatureSchemes {
     /// The basic signature algorithm scheme
@@ -13,22 +13,32 @@ pub enum SignatureSchemes {
     ProofOfPossession = 2,
 }
 
-impl From<u8> for SignatureSchemes {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for SignatureSchemes {
+    type Error = BlsError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Self::Basic,
-            1 => Self::MessageAugmentation,
-            _ => Self::ProofOfPossession,
+            0 => Ok(Self::Basic),
+            1 => Ok(Self::MessageAugmentation),
+            2 => Ok(Self::ProofOfPossession),
+            _ => Err(BlsError::InvalidInputs(format!(
+                "unknown signature scheme value: {value}"
+            ))),
         }
     }
 }
 
-impl From<&str> for SignatureSchemes {
-    fn from(value: &str) -> Self {
+impl TryFrom<&str> for SignatureSchemes {
+    type Error = BlsError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "Basic" => Self::Basic,
-            "MessageAugmentation" => Self::MessageAugmentation,
-            _ => Self::ProofOfPossession,
+            "Basic" => Ok(Self::Basic),
+            "MessageAugmentation" => Ok(Self::MessageAugmentation),
+            "ProofOfPossession" => Ok(Self::ProofOfPossession),
+            _ => Err(BlsError::InvalidInputs(format!(
+                "unknown signature scheme: {value}"
+            ))),
         }
     }
 }
@@ -47,11 +57,7 @@ impl core::str::FromStr for SignatureSchemes {
     type Err = BlsError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Basic" => Ok(Self::Basic),
-            "MessageAugmentation" => Ok(Self::MessageAugmentation),
-            _ => Ok(Self::ProofOfPossession),
-        }
+        Self::try_from(s)
     }
 }
 
@@ -75,10 +81,23 @@ impl<'de> serde::Deserialize<'de> for SignatureSchemes {
     {
         if d.is_human_readable() {
             let s = String::deserialize(d)?;
-            Ok(Self::from(s.as_str()))
+            Self::try_from(s.as_str()).map_err(serde::de::Error::custom)
         } else {
             let u = u8::deserialize(d)?;
-            Ok(Self::from(u))
+            Self::try_from(u).map_err(serde::de::Error::custom)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_unknown_scheme_values() {
+        assert!(SignatureSchemes::try_from(3).is_err());
+        assert!("unknown".parse::<SignatureSchemes>().is_err());
+        assert!(serde_json::from_str::<SignatureSchemes>("\"unknown\"").is_err());
+        assert!(serde_bare::from_slice::<SignatureSchemes>(&[3]).is_err());
     }
 }

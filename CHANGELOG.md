@@ -5,6 +5,47 @@ All notable changes to this crate will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Add scheme-specific `sign_basic`, `sign_augmented`, and `sign_pop` convenience methods.
+- Add caller-provided RNG variants for signcryption, time-lock encryption,
+  ElGamal encryption, and proof generation.
+- Add `scheme` accessors to signatures and signature shares.
+- Add `scheme` accessors to signcryption and time-lock ciphertexts.
+- Add `scheme` accessors to proof commitments and proofs of knowledge.
+- Make verification APIs consistently borrow public keys.
+- Make copyable decryption shares and reconstructed decryption keys implement
+  `Copy`.
+- Reject empty signature-share collections instead of panicking.
+- Reject unknown signature scheme strings and wire values instead of silently
+  treating them as proof-of-possession.
+- Avoid cloning messages during basic aggregate verification.
+- Prevent internal XOR helpers from silently truncating mismatched inputs.
+- Bounds-check encoded message lengths and consistently reject malformed
+  signcryption and time-lock plaintext encodings.
+- Make multi-public-key construction fallible and reject collections with fewer
+  than two keys.
+- Reject undersized aggregate-verification and share-reconstruction inputs
+  before invoking lower-level cryptographic operations.
+- Ensure zero-scalar rejection retries derive fresh HKDF output instead of
+  looping forever, while preserving existing first-attempt derivations.
+- Resample the negligible zero case for randomly generated ElGamal blinders.
+- Remove the unused `anyhow` dependency and make `BlsError` directly
+  comparable with `Eq` and `PartialEq`.
+- Move `hex` to development dependencies because it is only used by wire-format
+  tests.
+- Preserve the original `vsss-rs` error inside `BlsError::VsssError` so callers
+  can distinguish invalid thresholds, duplicate shares, and other failures.
+- Normalize malformed serde byte input to `DeserializationError` and avoid
+  double-wrapping generated serialization errors.
+- Centralize signature-scheme domain selection across encryption, decryption,
+  ciphertext validation, and decryption-share verification.
+- Verify share identifiers match before accepting signature or decryption shares.
+- Use the ciphertext's actual signature-scheme domain when verifying signcryption
+  decryption shares.
+- Remove the deprecated v1 share conversion APIs.
+- Update README examples to the current API.
+
 ## v4.0.0-rc0 - 2026-07-06
 
 - Update to Rust edition 2024

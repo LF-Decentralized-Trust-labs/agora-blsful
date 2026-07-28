@@ -48,13 +48,18 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for PublicKeyShare<C> {
     fn try_from(bytes: &[u8]) -> BlsResult<Self> {
         serde_bare::from_slice(bytes)
             .map(Self)
-            .map_err(|e| BlsError::InvalidInputs(e.to_string()))
+            .map_err(BlsError::from)
     }
 }
 
 impl<C: BlsSignatureImpl> PublicKeyShare<C> {
     /// Verify the signature share with the public key share
     pub fn verify<B: AsRef<[u8]>>(&self, sig: &SignatureShare<C>, msg: B) -> BlsResult<()> {
+        if self.0.identifier() != sig.as_raw_value().identifier() {
+            return Err(BlsError::InvalidInputs(
+                "signature and public key share identifiers differ".to_string(),
+            ));
+        }
         let pk = *self.0.value();
         match sig {
             SignatureShare::Basic(sig) => {
@@ -71,27 +76,6 @@ impl<C: BlsSignatureImpl> PublicKeyShare<C> {
             }
         }
     }
-
-    /// Convert a share byte sequence from version 1 to a public key share
-    /// that was output from converting to `Vec<u8>`
-    pub fn from_v1_inner_bytes(raw_bytes: &[u8]) -> BlsResult<Self> {
-        let mut repr = <C::PublicKey as GroupEncoding>::Repr::default();
-        if repr.as_ref().len() != raw_bytes.len() - 1 {
-            return Err(BlsError::InvalidInputs("invalid byte sequence".to_string()));
-        }
-
-        let identifier = IdentifierPrimeField(<<C as Pairing>::PublicKey as Group>::Scalar::from(
-            raw_bytes[0] as u64,
-        ));
-        repr.as_mut().copy_from_slice(&raw_bytes[1..]);
-        let value = Option::<C::PublicKey>::from(C::PublicKey::from_bytes(&repr))
-            .ok_or(BlsError::InvalidSignature)?;
-        let inner = <C as Pairing>::PublicKeyShare::with_identifier_and_value(
-            identifier,
-            ValueGroup(value),
-        );
-        Ok(Self(inner))
-    }
 }
 
 #[cfg(test)]
@@ -103,11 +87,6 @@ mod tests {
         let pk = PublicKeyShare::<Bls12381G2Impl>::default();
         let bytes = Vec::<u8>::try_from(&pk).unwrap();
         let pk2 = PublicKeyShare::try_from(&bytes).unwrap();
-        assert_eq!(pk, pk2);
-
-        let mut bytes = [0u8; 49];
-        bytes[1] = 192;
-        let pk2 = PublicKeyShare::<Bls12381G2Impl>::from_v1_inner_bytes(&bytes).unwrap();
         assert_eq!(pk, pk2);
     }
 }

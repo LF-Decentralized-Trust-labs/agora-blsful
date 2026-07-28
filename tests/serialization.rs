@@ -1,4 +1,3 @@
-use blsful::inner_types::{G1Projective, G2Projective};
 use blsful::*;
 use rand_core::{Infallible, Rng, SeedableRng, TryRng};
 use rstest::*;
@@ -285,38 +284,5 @@ fn shares_serialize_test() {
         assert!(res.is_ok());
         let sgs2 = res.unwrap();
         assert_eq!(sgs, sgs2);
-    }
-}
-
-#[test]
-fn legacy_shares_test() {
-    let sk = SecretKey::<Bls12381G1Impl>::from_hash("legacy_shares_test");
-    let sk_shares = sk.split(10, 20).unwrap();
-    for share in &sk_shares {
-        let mut v1 = [0u8; 33];
-        v1[0] = share.0.identifier.to_le_bytes()[0];
-        v1[1..].copy_from_slice(&share.0.value.to_le_bytes());
-
-        let share2 = SecretKeyShare::<Bls12381G1Impl>::from_v1_bytes(&v1)
-            .unwrap_or_else(|e| panic!("{e:?}"));
-        assert_eq!(share, &share2);
-
-        let mut v1 = [0u8; 49];
-        v1[0] = share.0.identifier.to_le_bytes()[0];
-        let t = G1Projective::GENERATOR * share.0.value.0;
-        v1[1..].copy_from_slice(&t.to_compressed());
-
-        let share2 = InnerPointShareG1::from_v1_bytes(&v1).unwrap_or_else(|e| panic!("{e:?}"));
-        assert_eq!(share.0.identifier, share2.0.identifier);
-        assert_eq!(t, share2.0.value.0);
-
-        let mut v1 = [0u8; 97];
-        v1[0] = share.0.identifier.to_le_bytes()[0];
-        let t = G2Projective::GENERATOR * share.0.value.0;
-        v1[1..].copy_from_slice(&t.to_compressed());
-
-        let share2 = InnerPointShareG2::from_v1_bytes(&v1).unwrap_or_else(|e| panic!("{e:?}"));
-        assert_eq!(share.0.identifier, share2.0.identifier);
-        assert_eq!(t, share2.0.value.0);
     }
 }

@@ -77,11 +77,20 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for AggregateSignature<C> {
     type Error = BlsError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        serde_bare::from_slice(value).map_err(|e| BlsError::InvalidInputs(e.to_string()))
+        serde_bare::from_slice(value).map_err(BlsError::from)
     }
 }
 
 impl<C: BlsSignatureImpl> AggregateSignature<C> {
+    /// Return the signature scheme used to create this aggregate signature.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::Basic(_) => SignatureSchemes::Basic,
+            Self::MessageAugmentation(_) => SignatureSchemes::MessageAugmentation,
+            Self::ProofOfPossession(_) => SignatureSchemes::ProofOfPossession,
+        }
+    }
+
     /// Accumulate multiple signatures into a single signature
     /// Verify fails if any signed message is a duplicate
     pub fn from_signatures<B: AsRef<[Signature<C>]>>(signatures: B) -> BlsResult<Self> {
@@ -90,6 +99,11 @@ impl<C: BlsSignatureImpl> AggregateSignature<C> {
 
     /// Verify the aggregated signature using the public keys
     pub fn verify<B: AsRef<[u8]>>(&self, data: &[(PublicKey<C>, B)]) -> BlsResult<()> {
+        if data.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two public key and message pairs are required".to_string(),
+            ));
+        }
         let ii = data.iter().map(|(pk, m)| (pk.0, m));
         match self {
             Self::Basic(sig) => <C as BlsSignatureBasic>::aggregate_verify(ii, *sig),

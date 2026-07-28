@@ -3,6 +3,7 @@ use crate::helpers::*;
 use crate::impls::inner_types::*;
 use crate::{BlsError, BlsResult};
 use rand::RngExt;
+use rand_core::CryptoRng;
 use subtle::{Choice, ConditionallySelectable, CtOption};
 use vsss_rs::*;
 
@@ -32,11 +33,20 @@ pub trait BlsSignCrypt:
         message: B,
         dst: &[u8],
     ) -> (Self::PublicKey, Vec<u8>, Self::Signature) {
+        Self::seal_with_rng(pk, message, dst, get_crypto_rng())
+    }
+
+    /// Create a new ciphertext using a caller-provided random number generator.
+    fn seal_with_rng<B: AsRef<[u8]>>(
+        pk: Self::PublicKey,
+        message: B,
+        dst: &[u8],
+        mut rng: impl CryptoRng,
+    ) -> (Self::PublicKey, Vec<u8>, Self::Signature) {
         const SALT: &[u8] = b"SIGNCRYPT_BLS12381_XOF:HKDF-SHA2-256_";
         let message = message.as_ref();
 
         // r ← Zq
-        let mut rng = get_crypto_rng();
         let r = Self::hash_to_scalar(rng.random::<[u8; 32]>(), SALT);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
         // U = P^r

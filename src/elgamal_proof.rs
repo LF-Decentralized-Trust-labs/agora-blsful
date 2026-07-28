@@ -72,8 +72,8 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ElGamalProof<C> {
 impl_from_derivatives_generic!(ElGamalProof);
 
 impl<C: BlsSignatureImpl> ElGamalProof<C> {
-    /// Verify the proof and ciphertext are valid
-    pub fn verify(&self, pk: PublicKey<C>) -> BlsResult<()> {
+    /// Verify the proof and ciphertext with a public key.
+    pub fn verify(&self, pk: &PublicKey<C>) -> BlsResult<()> {
         <C as BlsElGamal>::verify_proof(
             pk.0,
             None,

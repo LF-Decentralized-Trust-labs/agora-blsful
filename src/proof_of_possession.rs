@@ -52,7 +52,7 @@ impl ProofOfPossessionEnum {
     }
 
     /// Verify this proof of possession with a matching dynamic public key.
-    pub fn verify(&self, pk: PublicKeyEnum) -> BlsResult<()> {
+    pub fn verify(&self, pk: &PublicKeyEnum) -> BlsResult<()> {
         match (self, pk) {
             (Self::G1(pop), PublicKeyEnum::G1(pk)) => pop.verify(pk),
             (Self::G2(pop), PublicKeyEnum::G2(pk)) => pop.verify(pk),
@@ -137,8 +137,8 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ProofOfPossession<C> {
 }
 
 impl<C: BlsSignatureImpl> ProofOfPossession<C> {
-    /// Verify this proof of possession
-    pub fn verify(&self, pk: PublicKey<C>) -> BlsResult<()> {
+    /// Verify this proof of possession with a public key.
+    pub fn verify(&self, pk: &PublicKey<C>) -> BlsResult<()> {
         <C as BlsSignaturePop>::pop_verify(pk.0, self.0)
     }
 }

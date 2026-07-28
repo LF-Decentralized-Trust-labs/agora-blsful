@@ -5,6 +5,15 @@ use rand_core::CryptoRng;
 
 const SALT: &[u8] = b"ELGAMAL_BLS12381_XOF:HKDF-SHA2-256_";
 
+fn random_nonzero<F: Field>(rng: &mut impl CryptoRng) -> F {
+    loop {
+        let scalar = F::random(&mut *rng);
+        if !bool::from(scalar.is_zero()) {
+            return scalar;
+        }
+    }
+}
+
 /// The ciphertext and response values produced by ElGamal proof generation.
 pub struct ElGamalProofData<G: Group> {
     /// The first ciphertext component.
@@ -52,9 +61,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
             ));
         }
 
-        // odds of this being zero are 2^-256 so we can ignore checking for zero
-        let blinder =
-            blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(&mut rng));
+        let blinder = blinder.unwrap_or_else(|| random_nonzero(&mut rng));
         debug_assert_eq!(blinder.is_zero().unwrap_u8(), 0u8);
 
         let ek = generator * message;
@@ -79,9 +86,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
                 "Generator or public key is identity point".to_string(),
             ));
         }
-        // odds of this being zero are 2^-256 so we can ignore checking for zero
-        let blinder =
-            blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(&mut rng));
+        let blinder = blinder.unwrap_or_else(|| random_nonzero(&mut rng));
         debug_assert_eq!(blinder.is_zero().unwrap_u8(), 0u8);
         let c1 = Self::PublicKey::generator() * blinder;
         debug_assert_eq!(c1.is_identity().unwrap_u8(), 0u8);
@@ -105,9 +110,9 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         }
         let generator = generator.unwrap_or_else(|| Self::message_generator());
         debug_assert_eq!(generator.is_identity().unwrap_u8(), 0u8);
-        let b = blinder.unwrap_or_else(|| <Self::PublicKey as Group>::Scalar::random(&mut rng));
+        let b = blinder.unwrap_or_else(|| random_nonzero(&mut rng));
         debug_assert_eq!(b.is_zero().unwrap_u8(), 0u8);
-        let r = <Self::PublicKey as Group>::Scalar::random(&mut rng);
+        let r: <Self::PublicKey as Group>::Scalar = random_nonzero(&mut rng);
         debug_assert_eq!(r.is_zero().unwrap_u8(), 0u8);
         // c1 = P^b
         // c2 = H^m * P^ab

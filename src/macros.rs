@@ -1,10 +1,26 @@
+pub(crate) trait IntoBlsError {
+    fn into_bls_error(self) -> crate::error::BlsError;
+}
+
+impl IntoBlsError for crate::error::BlsError {
+    fn into_bls_error(self) -> crate::error::BlsError {
+        self
+    }
+}
+
+impl IntoBlsError for core::convert::Infallible {
+    fn into_bls_error(self) -> crate::error::BlsError {
+        match self {}
+    }
+}
+
 macro_rules! impl_from_derivatives_generic {
     ($name:ident) => {
         impl<C: BlsSignatureImpl> TryFrom<$name<C>> for Vec<u8> {
             type Error = BlsError;
 
             fn try_from(value: $name<C>) -> Result<Self, Self::Error> {
-                Vec::try_from(&value).map_err(|e| BlsError::SerializationError(e.to_string()))
+                Vec::try_from(&value).map_err($crate::macros::IntoBlsError::into_bls_error)
             }
         }
 
@@ -40,7 +56,7 @@ macro_rules! impl_from_derivatives {
             type Error = BlsError;
 
             fn try_from(value: $name) -> Result<Self, Self::Error> {
-                Vec::try_from(&value).map_err(|e| BlsError::SerializationError(e.to_string()))
+                Vec::try_from(&value).map_err($crate::macros::IntoBlsError::into_bls_error)
             }
         }
 
@@ -80,8 +96,6 @@ macro_rules! impl_from_derivatives {
 /// - `$projective`/`$affine`: the projective and affine point types.
 /// - `$id_access`/`$value_access`: the field-access token fragments used by the
 ///   `Display` impl, preserving the historical G1 (`.0`-suffixed) vs G2 output.
-/// - `$v1_len`: length of the version-1 fixed byte array (`49` / `97`).
-/// - `$compressed_len`: length of the compressed point (`48` / `96`).
 macro_rules! impl_inner_point_share {
     (
         $name:ident,
@@ -89,9 +103,7 @@ macro_rules! impl_inner_point_share {
         $projective:ident,
         $affine:ident,
         [ $($id_access:tt)* ],
-        [ $($value_access:tt)* ],
-        $v1_len:literal,
-        $compressed_len:literal
+        [ $($value_access:tt)* ]
     ) => {
         #[doc = concat!("The share type ", $group_doc)]
         #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -227,25 +239,6 @@ macro_rules! impl_inner_point_share {
             }
         }
 
-        impl $name {
-            /// Convert secret share from InnerPointShareG1 v1 to the newer v2 format
-            pub fn from_v1_bytes(bytes: &[u8]) -> Result<Self, BlsError> {
-                #[derive(Deserialize)]
-                struct V1(
-                    #[serde(deserialize_with = "fixed_arr::BigArray::deserialize")] [u8; $v1_len],
-                );
-                let v1 = serde_bare::from_slice::<V1>(bytes)
-                    .map_err(|e| BlsError::InvalidInputs(e.to_string()))?;
-                let identifier = Scalar::from(v1.0[0] as u64);
-                let mut repr = [0u8; $compressed_len];
-                repr.copy_from_slice(&v1.0[1..]);
-                let value =
-                    Option::from($projective::from_compressed(&repr)).ok_or_else(|| {
-                        BlsError::InvalidInputs("Invalid compressed G1Projective".to_string())
-                    })?;
-                Ok(Self((identifier, value).into()))
-            }
-        }
     };
 }
 

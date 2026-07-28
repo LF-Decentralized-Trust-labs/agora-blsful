@@ -3,6 +3,7 @@ use crate::impls::inner_types::*;
 use crate::traits::{HashToPoint, HashToScalar, Pairing};
 use crate::*;
 use rand::RngExt;
+use rand_core::CryptoRng;
 use sha2::{Digest, Sha256};
 use subtle::CtOption;
 
@@ -21,6 +22,17 @@ pub trait BlsTimeCrypt:
         id: &[u8],
         dst: &[u8],
     ) -> BlsResult<(Self::PublicKey, [u8; 32], Vec<u8>)> {
+        Self::seal_with_rng(pk, message, id, dst, get_crypto_rng())
+    }
+
+    /// Create a new ciphertext using a caller-provided random number generator.
+    fn seal_with_rng(
+        pk: Self::PublicKey,
+        message: &[u8],
+        id: &[u8],
+        dst: &[u8],
+        mut rng: impl CryptoRng,
+    ) -> BlsResult<(Self::PublicKey, [u8; 32], Vec<u8>)> {
         if pk.is_identity().into() {
             return Err(BlsError::InvalidInputs(
                 "public key is the identity point".to_string(),
@@ -28,7 +40,6 @@ pub trait BlsTimeCrypt:
         }
 
         // \alpha ← Zq
-        let mut rng = get_crypto_rng();
         let alpha = Self::hash_to_scalar(rng.random::<[u8; 32]>(), SALT);
         debug_assert_eq!(alpha.is_zero().unwrap_u8(), 0u8);
         let msg_dst = Sha256::digest(message);
@@ -74,18 +85,9 @@ pub trait BlsTimeCrypt:
         let alpha = Self::compute_v(k, v);
         let plaintext = Self::compute_w(&alpha, w);
 
-        let mut message = vec![];
-        if let Some(overhead) = uint_zigzag::Uint::peek(plaintext.as_slice()) {
-            let Ok(encoded_len) = uint_zigzag::Uint::try_from(&plaintext[..overhead]) else {
-                return CtOption::new(w.to_vec(), 0u8.into());
-            };
-            let len = encoded_len.0 as usize;
-            if len <= plaintext.len() - overhead {
-                message = plaintext[overhead..overhead + len].to_vec();
-            } else {
-                return CtOption::new(w.to_vec(), 0u8.into());
-            }
-        }
+        let Some(message) = decode_message_with_len(&plaintext) else {
+            return CtOption::new(w.to_vec(), 0u8.into());
+        };
 
         let msg_dst = Sha256::digest(&message);
         let mut r_input = Vec::with_capacity(alpha.len() + msg_dst.len());

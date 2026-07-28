@@ -18,14 +18,12 @@ BLS signatures offer the smallest known signature size as well as other benefits
 
 BLS signatures rely on pairing-friendly curves which have two fields for points. This library provides keys and signatures for both fields.
 
-For example, most signatures occur in the G1 group requiring public keys in G2 so these are simply named `Signature` and `PublicKey`.
-The variant type swaps the fields and thus is name `SignatureVt` and `PublicKeyVt`. Signature proofs of knowledge are supported using
-the `proof_of_knowledge` method on `Signatures` which allow a signature holder to prove knowledge of a signature without revealing it.
-The signed message is still disclosed. Given this is useful mainly for Signatures, it is not provided directly for multi-signatures or 
-aggregated signatures.
+Use `Bls12381G1Impl` for signatures in G1 and public keys in G2, or
+`Bls12381G2Impl` for signatures in G2 and public keys in G1. The `*Enum`
+types are available when that choice is only known at runtime.
 
-This library supports threshold signatures in the form of `PartialSignature` generated from `SecretKeyShare` instead of a `SecretKey`.
-`PartialSignature`s can be combined to make a full `Signature` assuming there are sufficient above the threshold. `SecretKeyShare`s can
+This library supports threshold signatures in the form of `SignatureShare` values generated from `SecretKeyShare` instead of a `SecretKey`.
+`SignatureShare`s can be combined to make a full `Signature` assuming there are sufficient above the threshold. `SecretKeyShare`s can
 be generated using shamir secret sharing from crates like [vsss-rs](https://docs.rs/vsss-rs) or using distributed key generation methods like
 [gennaro-dkg](https://docs.rs/gennaro-dkg).
 
@@ -43,41 +41,44 @@ it's still allows for signature compression.
 From random entropy source
 
 ```rust
-let sk = SecretKey::<Bls12381G1Impl>::random(rand_core::OsRng);
-let pk = PublicKey::from(&sk);
-let pop = ProofOfPossession::new(&sk).expect("a proof of possession");
-assert_eq!(pop.verify(pk).unwrap_u8(), 1u8);
+use blsful::{Bls12381G1Impl, SecretKey};
+
+let sk = SecretKey::<Bls12381G1Impl>::new();
+let pk = sk.public_key();
+let pop = sk.proof_of_possession().expect("a proof of possession");
+pop.verify(&pk).expect("a valid proof");
 ```
 
 From seed
 
 ```rust
-let sk = SecretKey::<Bls12381G1Impl>::hash(b"seed phrase");
+let sk = SecretKey::<Bls12381G1Impl>::from_hash(b"seed phrase");
 let pk = PublicKey::from(&sk);
 ```
 
 Split a key into key shares
 
 ```rust
-let shares = sk.split::<rand_core::OsRng, 3, 5>(rand_core::OsRng);
+let shares = sk.split(3, 5).expect("valid threshold parameters");
 ```
 
 Restore a key from shares
 
 ```rust
-let sk = SecretKey::<Bls12381G1Impl>::combine::<3, 5>(&shares);
+let sk = SecretKey::<Bls12381G1Impl>::combine(&shares).expect("enough valid shares");
 ```
 
 ## Signature operations
 
 Create a signature
 ```rust
-let sig = Signature::new(&sk, b"00000000-0000-0000-0000-000000000000").expect("a valid signature");
+let message = b"00000000-0000-0000-0000-000000000000";
+let sig = sk.sign_basic(message).expect("a valid signature");
 ```
 
 Verify a signature
 ```rust
-assert_eq!(sig.verify(pk, b"00000000-0000-0000-0000-000000000000").unwrap_u8(), 1u8);
+sig.verify(&pk, message).expect("a valid signature");
 ```
 
 ## License

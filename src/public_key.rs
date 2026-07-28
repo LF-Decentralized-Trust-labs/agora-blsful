@@ -1,5 +1,6 @@
 use crate::impls::inner_types::*;
 use crate::*;
+use rand_core::CryptoRng;
 
 /// A public key for either supported BLS12-381 signature group.
 ///
@@ -58,9 +59,19 @@ impl PublicKeyEnum {
         scheme: SignatureSchemes,
         msg: B,
     ) -> SignCryptCiphertextEnum {
+        self.sign_crypt_with_rng(scheme, msg, get_crypto_rng())
+    }
+
+    /// Encrypt a message using signcryption and a caller-provided random number generator.
+    pub fn sign_crypt_with_rng<B: AsRef<[u8]>>(
+        &self,
+        scheme: SignatureSchemes,
+        msg: B,
+        rng: impl CryptoRng,
+    ) -> SignCryptCiphertextEnum {
         match self {
-            Self::G1(pk) => SignCryptCiphertextEnum::G1(pk.sign_crypt(scheme, msg)),
-            Self::G2(pk) => SignCryptCiphertextEnum::G2(pk.sign_crypt(scheme, msg)),
+            Self::G1(pk) => SignCryptCiphertextEnum::G1(pk.sign_crypt_with_rng(scheme, msg, rng)),
+            Self::G2(pk) => SignCryptCiphertextEnum::G2(pk.sign_crypt_with_rng(scheme, msg, rng)),
         }
     }
 
@@ -71,12 +82,23 @@ impl PublicKeyEnum {
         msg: B,
         id: D,
     ) -> BlsResult<TimeCryptCiphertextEnum> {
+        self.encrypt_time_lock_with_rng(scheme, msg, id, get_crypto_rng())
+    }
+
+    /// Encrypt a message using time-lock encryption and a caller-provided random number generator.
+    pub fn encrypt_time_lock_with_rng<B: AsRef<[u8]>, D: AsRef<[u8]>>(
+        &self,
+        scheme: SignatureSchemes,
+        msg: B,
+        id: D,
+        rng: impl CryptoRng,
+    ) -> BlsResult<TimeCryptCiphertextEnum> {
         match self {
             Self::G1(pk) => pk
-                .encrypt_time_lock(scheme, msg, id)
+                .encrypt_time_lock_with_rng(scheme, msg, id, rng)
                 .map(TimeCryptCiphertextEnum::G1),
             Self::G2(pk) => pk
-                .encrypt_time_lock(scheme, msg, id)
+                .encrypt_time_lock_with_rng(scheme, msg, id, rng)
                 .map(TimeCryptCiphertextEnum::G2),
         }
     }
@@ -162,12 +184,18 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
         scheme: SignatureSchemes,
         msg: B,
     ) -> SignCryptCiphertext<C> {
-        let dst = match scheme {
-            SignatureSchemes::Basic => <C as BlsSignatureBasic>::DST,
-            SignatureSchemes::MessageAugmentation => <C as BlsSignatureMessageAugmentation>::DST,
-            SignatureSchemes::ProofOfPossession => <C as BlsSignaturePop>::SIG_DST,
-        };
-        let (u, v, w) = <C as BlsSignCrypt>::seal(self.0, msg.as_ref(), dst);
+        self.sign_crypt_with_rng(scheme, msg, get_crypto_rng())
+    }
+
+    /// Encrypt a message using signcryption and a caller-provided random number generator.
+    pub fn sign_crypt_with_rng<B: AsRef<[u8]>>(
+        &self,
+        scheme: SignatureSchemes,
+        msg: B,
+        rng: impl CryptoRng,
+    ) -> SignCryptCiphertext<C> {
+        let dst = signature_dst::<C>(scheme);
+        let (u, v, w) = <C as BlsSignCrypt>::seal_with_rng(self.0, msg.as_ref(), dst, rng);
         SignCryptCiphertext { u, v, w, scheme }
     }
 
@@ -178,25 +206,51 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
         msg: B,
         id: D,
     ) -> BlsResult<TimeCryptCiphertext<C>> {
-        let dst = match scheme {
-            SignatureSchemes::Basic => <C as BlsSignatureBasic>::DST,
-            SignatureSchemes::MessageAugmentation => <C as BlsSignatureMessageAugmentation>::DST,
-            SignatureSchemes::ProofOfPossession => <C as BlsSignaturePop>::SIG_DST,
-        };
-        let (u, v, w) = <C as BlsTimeCrypt>::seal(self.0, msg.as_ref(), id.as_ref(), dst)?;
+        self.encrypt_time_lock_with_rng(scheme, msg, id, get_crypto_rng())
+    }
+
+    /// Encrypt a message using time-lock encryption and a caller-provided random number generator.
+    pub fn encrypt_time_lock_with_rng<B: AsRef<[u8]>, D: AsRef<[u8]>>(
+        &self,
+        scheme: SignatureSchemes,
+        msg: B,
+        id: D,
+        rng: impl CryptoRng,
+    ) -> BlsResult<TimeCryptCiphertext<C>> {
+        let dst = signature_dst::<C>(scheme);
+        let (u, v, w) =
+            <C as BlsTimeCrypt>::seal_with_rng(self.0, msg.as_ref(), id.as_ref(), dst, rng)?;
         Ok(TimeCryptCiphertext { u, v, w, scheme })
     }
 
     /// Encrypt a message using ElGamal
     pub fn encrypt_key_el_gamal(&self, sk: &SecretKey<C>) -> BlsResult<ElGamalCiphertext<C>> {
-        let (c1, c2) = <C as BlsElGamal>::seal_scalar(self.0, sk.0, None, None, get_crypto_rng())?;
+        self.encrypt_key_el_gamal_with_rng(sk, get_crypto_rng())
+    }
+
+    /// Encrypt a message using ElGamal and a caller-provided random number generator.
+    pub fn encrypt_key_el_gamal_with_rng(
+        &self,
+        sk: &SecretKey<C>,
+        rng: impl CryptoRng,
+    ) -> BlsResult<ElGamalCiphertext<C>> {
+        let (c1, c2) = <C as BlsElGamal>::seal_scalar(self.0, sk.0, None, None, rng)?;
         Ok(ElGamalCiphertext { c1, c2 })
     }
 
     /// Encrypt a message using ElGamal and generate a proof
     pub fn encrypt_key_el_gamal_with_proof(&self, sk: &SecretKey<C>) -> BlsResult<ElGamalProof<C>> {
-        let proof =
-            <C as BlsElGamal>::seal_scalar_with_proof(self.0, sk.0, None, None, get_crypto_rng())?;
+        self.encrypt_key_el_gamal_with_proof_and_rng(sk, get_crypto_rng())
+    }
+
+    /// Encrypt a message using ElGamal, generate a proof, and use a
+    /// caller-provided random number generator.
+    pub fn encrypt_key_el_gamal_with_proof_and_rng(
+        &self,
+        sk: &SecretKey<C>,
+        rng: impl CryptoRng,
+    ) -> BlsResult<ElGamalProof<C>> {
+        let proof = <C as BlsElGamal>::seal_scalar_with_proof(self.0, sk.0, None, None, rng)?;
         Ok(ElGamalProof {
             ciphertext: ElGamalCiphertext {
                 c1: proof.c1,
@@ -210,6 +264,11 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
 
     /// Create a public key from secret shares
     pub fn from_shares(shares: &[PublicKeyShare<C>]) -> BlsResult<Self> {
+        if shares.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two public key shares are required".to_string(),
+            ));
+        }
         let points = shares
             .iter()
             .map(|s| s.0)

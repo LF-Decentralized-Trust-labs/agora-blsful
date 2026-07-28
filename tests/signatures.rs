@@ -42,16 +42,16 @@ fn proof_of_possession_works() {
     let sk = Bls12381G1::new_secret_key();
     let pk = sk.public_key();
     let pop = sk.proof_of_possession().unwrap();
-    assert!(pop.verify(pk).is_ok());
+    assert!(pop.verify(&pk).is_ok());
 
     let sk = SecretKey::<Bls12381G2Impl>(sk.0);
     let pk = sk.public_key();
     let pop = sk.proof_of_possession().unwrap();
-    assert!(pop.verify(pk).is_ok());
+    assert!(pop.verify(&pk).is_ok());
 
     let sk2 = Bls12381G2::new_secret_key();
     let pk2 = sk2.public_key();
-    assert!(pop.verify(pk2).is_err());
+    assert!(pop.verify(&pk2).is_err());
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn dynamic_facade_works() {
 
         let pop = sk.proof_of_possession().unwrap();
         assert_eq!(pop.curve(), curve);
-        assert!(pop.verify(pk).is_ok());
+        assert!(pop.verify(&pk).is_ok());
 
         let sk_bytes = sk.to_be_bytes();
         let sk2 = SecretKeyEnum::from_be_bytes(&sk_bytes).unwrap();
@@ -107,6 +107,7 @@ fn shares_work<C: BlsSignatureImpl + PartialEq + Eq>(#[case] _c: C) {
     assert!(sig1.verify(&pks1, TEST_MSG).is_ok());
     assert!(sig2.verify(&pks2, TEST_MSG).is_ok());
     assert!(sig3.verify(&pks3, TEST_MSG).is_ok());
+    assert!(sig1.verify(&pks2, TEST_MSG).is_err());
 
     let res = Signature::from_shares(&[sig1, sig2, sig3]);
     assert!(res.is_ok());
@@ -131,6 +132,9 @@ fn multisigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
     let pk2 = sk2.public_key();
     let pk3 = sk3.public_key();
 
+    assert!(MultiPublicKey::<C>::from_public_keys([]).is_err());
+    assert!(MultiPublicKey::from_public_keys([pk1]).is_err());
+
     let sig1 = sk1
         .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
         .unwrap();
@@ -142,16 +146,16 @@ fn multisigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
         .unwrap();
 
     let msig = MultiSignature::from_signatures([sig1, sig2, sig3]).unwrap();
-    let mpk = MultiPublicKey::from_public_keys([pk1, pk2, pk3]);
-    assert!(msig.verify(mpk, TEST_MSG).is_ok());
+    let mpk = MultiPublicKey::from_public_keys([pk1, pk2, pk3]).unwrap();
+    assert!(msig.verify(&mpk, TEST_MSG).is_ok());
 
     let off_sig = sk1.sign(SignatureSchemes::Basic, TEST_MSG).unwrap();
     let res = MultiSignature::from_signatures([sig1, sig2, sig3, off_sig]);
     assert!(res.is_err());
 
     // miss a key
-    let mpk = MultiPublicKey::from_public_keys([pk1, pk2]);
-    assert!(msig.verify(mpk, TEST_MSG).is_err());
+    let mpk = MultiPublicKey::from_public_keys([pk1, pk2]).unwrap();
+    assert!(msig.verify(&mpk, TEST_MSG).is_err());
 
     let sk4 = SecretKey::<C>::new();
     let bad_sig = sk4

@@ -25,6 +25,14 @@ impl SignCryptCiphertextEnum {
         }
     }
 
+    /// Return the signature scheme used to create this ciphertext.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::G1(ciphertext) => ciphertext.scheme(),
+            Self::G2(ciphertext) => ciphertext.scheme(),
+        }
+    }
+
     /// Decrypt the signcrypt ciphertext with a matching dynamic secret key.
     pub fn decrypt(&self, sk: &SecretKeyEnum) -> CtOption<Vec<u8>> {
         match (self, sk) {
@@ -90,6 +98,11 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for SignCryptCiphertext<C> {
 impl_from_derivatives_generic!(SignCryptCiphertext);
 
 impl<C: BlsSignatureImpl> SignCryptCiphertext<C> {
+    /// Return the signature scheme used to create this ciphertext.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        self.scheme
+    }
+
     /// Create a decryption share from a secret key share
     pub fn create_decryption_share(
         &self,
@@ -105,11 +118,7 @@ impl<C: BlsSignatureImpl> SignCryptCiphertext<C> {
         &self,
         shares: B,
     ) -> CtOption<Vec<u8>> {
-        let dst = match self.scheme {
-            SignatureSchemes::Basic => <C as BlsSignatureBasic>::DST,
-            SignatureSchemes::MessageAugmentation => <C as BlsSignatureMessageAugmentation>::DST,
-            SignatureSchemes::ProofOfPossession => <C as BlsSignaturePop>::SIG_DST,
-        };
+        let dst = signature_dst::<C>(self.scheme);
 
         let shares = shares.as_ref().iter().map(|s| s.0).collect::<Vec<_>>();
         <C as BlsSignCrypt>::unseal_with_shares(self.u, &self.v, self.w, shares.as_slice(), dst)
@@ -117,31 +126,14 @@ impl<C: BlsSignatureImpl> SignCryptCiphertext<C> {
 
     /// Decrypt the signcrypt ciphertext
     pub fn decrypt(&self, sk: &SecretKey<C>) -> CtOption<Vec<u8>> {
-        let dst = match self.scheme {
-            SignatureSchemes::Basic => <C as BlsSignatureBasic>::DST,
-            SignatureSchemes::MessageAugmentation => <C as BlsSignatureMessageAugmentation>::DST,
-            SignatureSchemes::ProofOfPossession => <C as BlsSignaturePop>::SIG_DST,
-        };
+        let dst = signature_dst::<C>(self.scheme);
 
         <C as BlsSignCrypt>::unseal(self.u, &self.v, self.w, &sk.0, dst)
     }
 
     /// Check if the ciphertext is valid
     pub fn is_valid(&self) -> Choice {
-        match self.scheme {
-            SignatureSchemes::Basic => {
-                <C as BlsSignCrypt>::valid(self.u, &self.v, self.w, <C as BlsSignatureBasic>::DST)
-            }
-            SignatureSchemes::MessageAugmentation => <C as BlsSignCrypt>::valid(
-                self.u,
-                &self.v,
-                self.w,
-                <C as BlsSignatureMessageAugmentation>::DST,
-            ),
-            SignatureSchemes::ProofOfPossession => {
-                <C as BlsSignCrypt>::valid(self.u, &self.v, self.w, <C as BlsSignaturePop>::SIG_DST)
-            }
-        }
+        <C as BlsSignCrypt>::valid(self.u, &self.v, self.w, signature_dst::<C>(self.scheme))
     }
 }
 
@@ -162,9 +154,11 @@ impl<C: BlsSignatureImpl> fmt::Debug for SignCryptDecryptionKey<C> {
 
 impl<C: BlsSignatureImpl> Clone for SignCryptDecryptionKey<C> {
     fn clone(&self) -> Self {
-        Self(self.0)
+        *self
     }
 }
+
+impl<C: BlsSignatureImpl> Copy for SignCryptDecryptionKey<C> {}
 
 impl<C: BlsSignatureImpl> TryFrom<&SignCryptDecryptionKey<C>> for Vec<u8> {
     type Error = BlsError;
@@ -188,11 +182,7 @@ impl_from_derivatives_generic!(SignCryptDecryptionKey);
 impl<C: BlsSignatureImpl> SignCryptDecryptionKey<C> {
     /// Decrypt signcrypt ciphertext
     pub fn decrypt(&self, ciphertext: &SignCryptCiphertext<C>) -> CtOption<Vec<u8>> {
-        let dst = match ciphertext.scheme {
-            SignatureSchemes::Basic => <C as BlsSignatureBasic>::DST,
-            SignatureSchemes::MessageAugmentation => <C as BlsSignatureMessageAugmentation>::DST,
-            SignatureSchemes::ProofOfPossession => <C as BlsSignaturePop>::SIG_DST,
-        };
+        let dst = signature_dst::<C>(ciphertext.scheme);
 
         let choice = <C as BlsSignCrypt>::valid(ciphertext.u, &ciphertext.v, ciphertext.w, dst);
         <C as BlsSignCrypt>::decrypt(&ciphertext.v, self.0, choice)
@@ -200,6 +190,11 @@ impl<C: BlsSignatureImpl> SignCryptDecryptionKey<C> {
 
     /// Combine decryption shares into a signcrypt decryption key
     pub fn from_shares(shares: &[SignDecryptionShare<C>]) -> BlsResult<Self> {
+        if shares.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two decryption shares are required".to_string(),
+            ));
+        }
         let points = shares
             .iter()
             .map(|s| s.0)

@@ -25,6 +25,14 @@ impl TimeCryptCiphertextEnum {
         }
     }
 
+    /// Return the signature scheme used to create this ciphertext.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::G1(ciphertext) => ciphertext.scheme(),
+            Self::G2(ciphertext) => ciphertext.scheme(),
+        }
+    }
+
     /// Decrypt the time-lock ciphertext with a matching dynamic signature.
     pub fn decrypt(&self, sig: &SignatureEnum) -> CtOption<Vec<u8>> {
         match (self, sig) {
@@ -70,6 +78,11 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for TimeCryptCiphertext<C> {
 impl_from_derivatives_generic!(TimeCryptCiphertext);
 
 impl<C: BlsSignatureImpl> TimeCryptCiphertext<C> {
+    /// Return the signature scheme used to create this ciphertext.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        self.scheme
+    }
+
     /// Decrypt the time lock ciphertext using a signature over an identifier
     pub fn decrypt(&self, sig: &Signature<C>) -> CtOption<Vec<u8>> {
         let (s, valid) = match (sig, self.scheme) {

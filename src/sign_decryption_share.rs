@@ -13,9 +13,11 @@ pub struct SignDecryptionShare<C: BlsSignatureImpl>(pub <C as Pairing>::PublicKe
 
 impl<C: BlsSignatureImpl> Clone for SignDecryptionShare<C> {
     fn clone(&self) -> Self {
-        Self(self.0)
+        *self
     }
 }
+
+impl<C: BlsSignatureImpl> Copy for SignDecryptionShare<C> {}
 
 impl<C: BlsSignatureImpl> fmt::Debug for SignDecryptionShare<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -36,7 +38,7 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for SignDecryptionShare<C> {
     fn try_from(bytes: &[u8]) -> BlsResult<Self> {
         serde_bare::from_slice(bytes)
             .map(Self)
-            .map_err(|_| BlsError::InvalidInputs("invalid byte sequence".to_string()))
+            .map_err(BlsError::from)
     }
 }
 
@@ -45,18 +47,13 @@ impl_from_derivatives_generic!(SignDecryptionShare);
 impl<C: BlsSignatureImpl> SignDecryptionShare<C> {
     /// Verify the signcrypt decryption share with the corresponding public key and ciphertext
     pub fn verify(&self, pks: &PublicKeyShare<C>, sig: &SignCryptCiphertext<C>) -> BlsResult<()> {
+        if self.0.identifier() != pks.0.identifier() {
+            return Err(BlsError::InvalidDecryptionShare);
+        }
         let share = *self.0.value();
         let pk = *pks.0.value();
-        if <C as BlsSignCrypt>::verify_share(
-            share.0,
-            pk.0,
-            sig.u,
-            &sig.v,
-            sig.w,
-            <C as BlsSignatureBasic>::DST,
-        )
-        .into()
-        {
+        let dst = signature_dst::<C>(sig.scheme);
+        if <C as BlsSignCrypt>::verify_share(share.0, pk.0, sig.u, &sig.v, sig.w, dst).into() {
             Ok(())
         } else {
             Err(BlsError::InvalidDecryptionShare)

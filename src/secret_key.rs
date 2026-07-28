@@ -235,6 +235,21 @@ impl SecretKeyEnum {
             SecretKeyEnum::G2(sk) => sk.sign(scheme, msg).map(SignatureEnum::G2),
         }
     }
+
+    /// Sign a message using the basic signature scheme.
+    pub fn sign_basic(&self, msg: impl AsRef<[u8]>) -> BlsResult<SignatureEnum> {
+        self.sign(SignatureSchemes::Basic, msg.as_ref())
+    }
+
+    /// Sign a message using the message-augmentation signature scheme.
+    pub fn sign_augmented(&self, msg: impl AsRef<[u8]>) -> BlsResult<SignatureEnum> {
+        self.sign(SignatureSchemes::MessageAugmentation, msg.as_ref())
+    }
+
+    /// Sign a message using the proof-of-possession signature scheme.
+    pub fn sign_pop(&self, msg: impl AsRef<[u8]>) -> BlsResult<SignatureEnum> {
+        self.sign(SignatureSchemes::ProofOfPossession, msg.as_ref())
+    }
 }
 
 /// The secret key is field element 0 < `x` < `r`
@@ -347,6 +362,11 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
 
     /// Reconstruct a secret from shares created from `split`
     pub fn combine(shares: &[SecretKeyShare<C>]) -> BlsResult<Self> {
+        if shares.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two secret key shares are required".to_string(),
+            ));
+        }
         let ss = shares.iter().map(|s| s.0.clone()).collect::<Vec<_>>();
         let secret = ss.combine()?;
         Ok(Self(secret.0))
@@ -380,6 +400,21 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
                 Ok(Signature::ProofOfPossession(inner))
             }
         }
+    }
+
+    /// Sign a message using the basic signature scheme.
+    pub fn sign_basic(&self, msg: impl AsRef<[u8]>) -> BlsResult<Signature<C>> {
+        self.sign(SignatureSchemes::Basic, msg.as_ref())
+    }
+
+    /// Sign a message using the message-augmentation signature scheme.
+    pub fn sign_augmented(&self, msg: impl AsRef<[u8]>) -> BlsResult<Signature<C>> {
+        self.sign(SignatureSchemes::MessageAugmentation, msg.as_ref())
+    }
+
+    /// Sign a message using the proof-of-possession signature scheme.
+    pub fn sign_pop(&self, msg: impl AsRef<[u8]>) -> BlsResult<Signature<C>> {
+        self.sign(SignatureSchemes::ProofOfPossession, msg.as_ref())
     }
 
     /// Create a Signcrypt decryption key where the secret key is hidden

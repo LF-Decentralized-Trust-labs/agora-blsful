@@ -12,17 +12,17 @@ pub struct ElGamalDecryptionShare<C: BlsSignatureImpl>(
 
 impl<C: BlsSignatureImpl> Clone for ElGamalDecryptionShare<C> {
     fn clone(&self) -> Self {
-        Self(self.0)
+        *self
     }
 }
+
+impl<C: BlsSignatureImpl> Copy for ElGamalDecryptionShare<C> {}
 
 impl<C: BlsSignatureImpl> fmt::Debug for ElGamalDecryptionShare<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.0)
     }
 }
-
-impl<C: BlsSignatureImpl> ElGamalDecryptionShare<C> {}
 
 impl<C: BlsSignatureImpl> TryFrom<&ElGamalDecryptionShare<C>> for Vec<u8> {
     type Error = BlsError;
@@ -54,9 +54,11 @@ pub struct ElGamalDecryptionKey<C: BlsSignatureImpl>(
 
 impl<C: BlsSignatureImpl> Clone for ElGamalDecryptionKey<C> {
     fn clone(&self) -> Self {
-        Self(self.0)
+        *self
     }
 }
+
+impl<C: BlsSignatureImpl> Copy for ElGamalDecryptionKey<C> {}
 
 impl<C: BlsSignatureImpl> TryFrom<&ElGamalDecryptionKey<C>> for Vec<u8> {
     type Error = BlsError;
@@ -85,6 +87,11 @@ impl<C: BlsSignatureImpl> ElGamalDecryptionKey<C> {
 
     /// Combine decryption shares into a signcrypt decryption key
     pub fn from_shares(shares: &[ElGamalDecryptionShare<C>]) -> BlsResult<Self> {
+        if shares.len() < 2 {
+            return Err(BlsError::InvalidInputs(
+                "at least two decryption shares are required".to_string(),
+            ));
+        }
         let points = shares
             .iter()
             .map(|s| s.0)

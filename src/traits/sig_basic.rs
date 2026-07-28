@@ -44,20 +44,19 @@ pub trait BlsSignatureBasic: BlsSignatureCore + BlsMultiSignature + BlsMultiKey 
         B: AsRef<[u8]>,
     {
         // check uniqueness
-        let mut set = HashMap::new();
+        let mut messages = HashMap::new();
         let mut inputs = Vec::new();
         for (i, (pk, m)) in pks.enumerate() {
-            let item = m.as_ref().to_vec();
-            if let Some(old) = set.insert(item.clone(), i) {
+            if let Some(old) = messages.insert(m.as_ref().to_vec(), i) {
                 return Err(BlsError::InvalidInputs(format!(
                     "duplicate messages detected at {} and {}",
                     old, i
                 )));
             }
-            inputs.push((pk, item));
+            inputs.push((pk, m));
         }
         <Self as BlsSignatureCore>::core_aggregate_verify(
-            inputs.iter().map(|(pk, b)| (*pk, b.as_slice())),
+            inputs.iter().map(|(pk, message)| (*pk, message)),
             sig,
             Self::DST,
         )

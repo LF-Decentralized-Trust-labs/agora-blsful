@@ -157,7 +157,7 @@ pub trait BlsSignatureCore:
                 "signature is the identity point".to_string(),
             ));
         }
-        let mut pairs = Vec::with_capacity(1);
+        let mut pairs = Vec::with_capacity(pks.size_hint().0.saturating_add(1));
         for (i, (pk, msg)) in pks.enumerate() {
             if pk.is_identity().into() {
                 return Err(BlsError::InvalidInputs(format!(

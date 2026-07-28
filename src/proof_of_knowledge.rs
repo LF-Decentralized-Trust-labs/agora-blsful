@@ -131,10 +131,19 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ProofOfKnowledge<C> {
 impl_from_derivatives_generic!(ProofOfKnowledge);
 
 impl<C: BlsSignatureImpl> ProofOfKnowledge<C> {
+    /// Return the signature scheme proven by this proof.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::Basic { .. } => SignatureSchemes::Basic,
+            Self::MessageAugmentation { .. } => SignatureSchemes::MessageAugmentation,
+            Self::ProofOfPossession { .. } => SignatureSchemes::ProofOfPossession,
+        }
+    }
+
     /// Verify the proof of knowledge
     pub fn verify<B: AsRef<[u8]>>(
         &self,
-        pk: PublicKey<C>,
+        pk: &PublicKey<C>,
         msg: B,
         y: ProofCommitmentChallenge<C>,
     ) -> BlsResult<()> {
@@ -249,6 +258,11 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ProofOfKnowledgeTimestamp<C> {
 impl_from_derivatives_generic!(ProofOfKnowledgeTimestamp);
 
 impl<C: BlsSignatureImpl> ProofOfKnowledgeTimestamp<C> {
+    /// Return the signature scheme proven by this timestamped proof.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        self.proof.scheme()
+    }
+
     /// Create a new signature proof of knowledge using a timestamp
     pub fn generate<B: AsRef<[u8]>>(msg: B, signature: Signature<C>) -> BlsResult<Self> {
         match signature {
@@ -291,7 +305,7 @@ impl<C: BlsSignatureImpl> ProofOfKnowledgeTimestamp<C> {
     /// Verify this proof of knowledge
     pub fn verify<B: AsRef<[u8]>>(
         &self,
-        pk: PublicKey<C>,
+        pk: &PublicKey<C>,
         msg: B,
         timeout_ms: Option<u64>,
     ) -> BlsResult<()> {

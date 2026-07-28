@@ -106,11 +106,20 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ProofCommitment<C> {
                 value.len()
             )));
         }
-        serde_bare::from_slice(value).map_err(|e| BlsError::InvalidInputs(e.to_string()))
+        serde_bare::from_slice(value).map_err(BlsError::from)
     }
 }
 
 impl<C: BlsSignatureImpl> ProofCommitment<C> {
+    /// Return the signature scheme associated with this commitment.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::Basic(_) => SignatureSchemes::Basic,
+            Self::MessageAugmentation(_) => SignatureSchemes::MessageAugmentation,
+            Self::ProofOfPossession(_) => SignatureSchemes::ProofOfPossession,
+        }
+    }
+
     /// Generate a new proof of knowledge commitment
     /// This is step 1 in the 3 step process
     pub fn generate<B: AsRef<[u8]>>(

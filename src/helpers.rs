@@ -1,5 +1,8 @@
 use crate::impls::inner_types::*;
-use crate::{Bls12381, BlsSignatureImpl, Pairing};
+use crate::{
+    Bls12381, BlsSignatureBasic, BlsSignatureImpl, BlsSignatureMessageAugmentation,
+    BlsSignaturePop, Pairing, SignatureSchemes,
+};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
 use shake::{ExtendableOutput, Shake128, Update, XofReader};
@@ -10,25 +13,32 @@ pub const KEYGEN_SALT: &[u8] = b"BLS-SIG-KEYGEN-SALT-";
 pub fn scalar_from_hkdf_bytes(salt: Option<&[u8]>, ikm: &[u8]) -> Scalar {
     const INFO: [u8; 2] = [0u8, 48u8];
 
-    let mut extractor = hkdf::HkdfExtract::<sha2::Sha256>::new(salt);
-    extractor.input_ikm(ikm);
-    extractor.input_ikm(&[0u8]);
-    let (_, h) = extractor.finalize();
-
+    let mut counter = 0u32;
     let mut output = [0u8; 48];
-    let mut s = Scalar::ZERO;
-    // Odds of this happening are extremely low but check anyway
-    while s == Scalar::ZERO {
+    loop {
+        let mut extractor = hkdf::HkdfExtract::<sha2::Sha256>::new(salt);
+        extractor.input_ikm(ikm);
+        extractor.input_ikm(&[0u8]);
+        if counter != 0 {
+            extractor.input_ikm(&counter.to_be_bytes());
+        }
+        let (_, h) = extractor.finalize();
         if h.expand(&INFO, &mut output).is_err() {
             return Scalar::ZERO;
         }
-        s = Scalar::from_okm(&output);
+        let scalar = Scalar::from_okm(&output);
+        if scalar != Scalar::ZERO {
+            return scalar;
+        }
+        let Some(next) = counter.checked_add(1) else {
+            return Scalar::ZERO;
+        };
+        counter = next;
     }
-    s
 }
 
 pub fn byte_xor(arr1: &[u8], arr2: &[u8]) -> Vec<u8> {
-    debug_assert_eq!(arr1.len(), arr2.len());
+    assert_eq!(arr1.len(), arr2.len(), "XOR inputs must have equal lengths");
     arr1.iter().zip(arr2.iter()).map(|(a, b)| a ^ b).collect()
 }
 
@@ -56,8 +66,10 @@ pub fn encode_message_with_len(message: &[u8], min_len: usize) -> Vec<u8> {
 
 pub fn decode_message_with_len(encoded: &[u8]) -> Option<Vec<u8>> {
     let overhead = uint_zigzag::Uint::peek(encoded)?;
-    let len = uint_zigzag::Uint::try_from(&encoded[..overhead]).ok()?.0 as usize;
-    (len <= encoded.len() - overhead).then(|| encoded[overhead..overhead + len].to_vec())
+    let prefix = encoded.get(..overhead)?;
+    let len = uint_zigzag::Uint::try_from(prefix).ok()?.0 as usize;
+    let end = overhead.checked_add(len)?;
+    encoded.get(overhead..end).map(<[u8]>::to_vec)
 }
 
 pub fn typed_bytes(t: Bls12381, value: impl AsRef<[u8]>) -> Vec<u8> {
@@ -70,6 +82,14 @@ pub fn typed_bytes(t: Bls12381, value: impl AsRef<[u8]>) -> Vec<u8> {
 
 pub fn get_crypto_rng() -> ChaCha20Rng {
     ChaCha20Rng::from_rng(&mut rand::rng())
+}
+
+pub fn signature_dst<C: BlsSignatureImpl>(scheme: SignatureSchemes) -> &'static [u8] {
+    match scheme {
+        SignatureSchemes::Basic => <C as BlsSignatureBasic>::DST,
+        SignatureSchemes::MessageAugmentation => <C as BlsSignatureMessageAugmentation>::DST,
+        SignatureSchemes::ProofOfPossession => <C as BlsSignaturePop>::SIG_DST,
+    }
 }
 
 /// Compute the pairing of `(G1, G2)` point pairs where the first element of
@@ -150,59 +170,6 @@ pub fn scalar_from_le_bytes<C: BlsSignatureImpl, const N: usize>(
     scalar_from_bytes::<C, N>(input, false)
 }
 
-pub mod fixed_arr {
-    use core::fmt::{self, Formatter};
-    use serde::{
-        Deserialize, Deserializer,
-        de::{self, SeqAccess, Visitor},
-    };
-
-    pub trait BigArray<'de>: Sized {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>;
-    }
-
-    impl<'de, const N: usize> BigArray<'de> for [u8; N] {
-        fn deserialize<D>(d: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            if d.is_human_readable() {
-                let hex_str = <&str>::deserialize(d)?;
-                let mut share = [0u8; N];
-                hex::decode_to_slice(hex_str, &mut share).map_err(de::Error::custom)?;
-                return Ok(share);
-            }
-
-            struct ArrayVisitor<const N: usize>;
-
-            impl<'de, const N: usize> Visitor<'de> for ArrayVisitor<N> {
-                type Value = [u8; N];
-
-                fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                    write!(formatter, "an array of length {}", N)
-                }
-
-                fn visit_seq<A>(self, mut seq: A) -> Result<[u8; N], A::Error>
-                where
-                    A: SeqAccess<'de>,
-                {
-                    let mut arr = [0u8; N];
-                    for (i, b) in arr.iter_mut().enumerate() {
-                        *b = seq
-                            .next_element()?
-                            .ok_or_else(|| de::Error::invalid_length(i, &self))?;
-                    }
-                    Ok(arr)
-                }
-            }
-
-            d.deserialize_tuple(N, ArrayVisitor)
-        }
-    }
-}
-
 pub trait IsZero {
     fn is_zero(&self) -> Choice;
 }
@@ -215,5 +182,23 @@ impl IsZero for [u8] {
         }
 
         Choice::from((((t | -t) >> 7) + 1) as u8)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn message_length_decoding_rejects_truncated_inputs() {
+        for byte in 0..=u8::MAX {
+            let _ = decode_message_with_len(&[byte]);
+        }
+
+        let encoded = encode_message_with_len(b"message", 0);
+        for end in 0..encoded.len() {
+            assert!(decode_message_with_len(&encoded[..end]).is_none());
+        }
+        assert_eq!(decode_message_with_len(&encoded), Some(b"message".to_vec()));
     }
 }

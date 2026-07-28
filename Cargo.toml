@@ -15,7 +15,7 @@ license = "MIT OR Apache-2.0"
 name = "blsful"
 readme = "README.md"
 repository = "https://github.com/LF-Decentralized-Trust-labs/agora-blsful"
-version = "4.0.0-rc3"
+version = "4.0.0-rc4"
 
 [features]
 default = ["blst"]
@@ -23,10 +23,8 @@ rust = ["bls12_381_plus/alloc", "bls12_381_plus/expose-fields"]
 blst = ["blstrs_plus", "blstrs_plus/expose-fields"]
 
 [dependencies]
-anyhow = "1.0"
 bls12_381_plus =  { version = "0.9.0-rc1", optional = true }
 blstrs_plus = { version = "0.9.0-rc1", optional = true}
-hex = "0.4"
 hkdf = { version = "0.13", default-features = false }
 merlin = "3"
 rand = "0.10"
@@ -40,11 +38,12 @@ shake = { version = "0.1", default-features = false }
 subtle = { version = "2.6", default-features = false }
 thiserror = "2.0"
 uint-zigzag = { version = "0.2", features = ["alloc"] }
-vsss-rs = { version = "6.0.0-rc8", default-features = false, features = ["alloc", "curve", "serde", "zeroize"] }
+vsss-rs = { version = "6.0.0-rc9", default-features = false, features = ["alloc", "curve", "serde", "zeroize"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 
 [dev-dependencies]
 ciborium = "0.2"
+hex = "0.4"
 noyalib = "0.0.17"
 postcard = { version = "1.1", default-features = false, features = ["alloc"] }
 rand_xorshift = "0.5"

@@ -79,13 +79,22 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for MultiSignature<C> {
     type Error = BlsError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        serde_bare::from_slice(value).map_err(|_| BlsError::InvalidSignature)
+        serde_bare::from_slice(value).map_err(BlsError::from)
     }
 }
 
 impl<C: BlsSignatureImpl> MultiSignature<C> {
-    /// Verify the multi-signature using the multi-public key
-    pub fn verify<B: AsRef<[u8]>>(&self, pk: MultiPublicKey<C>, msg: B) -> BlsResult<()> {
+    /// Return the signature scheme used to create this multi-signature.
+    pub const fn scheme(&self) -> SignatureSchemes {
+        match self {
+            Self::Basic(_) => SignatureSchemes::Basic,
+            Self::MessageAugmentation(_) => SignatureSchemes::MessageAugmentation,
+            Self::ProofOfPossession(_) => SignatureSchemes::ProofOfPossession,
+        }
+    }
+
+    /// Verify the multi-signature using the multi-public key.
+    pub fn verify<B: AsRef<[u8]>>(&self, pk: &MultiPublicKey<C>, msg: B) -> BlsResult<()> {
         match self {
             Self::Basic(sig) => <C as BlsSignatureBasic>::verify(pk.0, *sig, msg),
             Self::MessageAugmentation(sig) => {

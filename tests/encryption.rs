@@ -1,4 +1,6 @@
 use blsful::*;
+use rand_chacha::ChaCha20Rng;
+use rand_core::SeedableRng;
 use rstest::*;
 
 const TEST_ID: &[u8] = b"super id";
@@ -36,11 +38,19 @@ fn sign_crypt_works<C: BlsSignatureImpl + PartialEq + Eq + std::fmt::Debug>(#[ca
 #[rstest]
 #[case::g1(Bls12381G1Impl)]
 #[case::g2(Bls12381G2Impl)]
-fn sign_crypt_with_shares_works<C: BlsSignatureImpl>(#[case] _c: C) {
+fn sign_crypt_with_shares_works<C: BlsSignatureImpl>(
+    #[case] _c: C,
+    #[values(
+        SignatureSchemes::Basic,
+        SignatureSchemes::MessageAugmentation,
+        SignatureSchemes::ProofOfPossession
+    )]
+    scheme: SignatureSchemes,
+) {
     let sk = SecretKey::<C>::new();
     let pk = sk.public_key();
     let shares = sk.split(2, 3).unwrap();
-    let ciphertext = pk.sign_crypt(SignatureSchemes::Basic, TEST_MSG);
+    let ciphertext = pk.sign_crypt(scheme, TEST_MSG);
     let public_key_shares = shares
         .iter()
         .map(|s| s.public_key().unwrap())
@@ -54,6 +64,11 @@ fn sign_crypt_with_shares_works<C: BlsSignatureImpl>(#[case] _c: C) {
             .iter()
             .zip(public_key_shares.iter())
             .all(|(d, p)| d.verify(p, &ciphertext).is_ok())
+    );
+    assert!(
+        decryption_shares[0]
+            .verify(&public_key_shares[1], &ciphertext)
+            .is_err()
     );
 
     let res = ciphertext.decrypt_with_shares(&decryption_shares);
@@ -199,11 +214,81 @@ fn elgamal_proofs_work<C: BlsSignatureImpl>(#[case] _c: C) {
     let res = pk.encrypt_key_el_gamal_with_proof(&secret);
     assert!(res.is_ok());
     let proof = res.unwrap();
-    assert!(proof.verify(pk).is_ok());
+    assert!(proof.verify(&pk).is_ok());
     let res = proof.verify_and_decrypt(&sk);
     assert!(res.is_ok());
     assert_eq!(
         res.unwrap(),
         <C as BlsElGamal>::message_generator() * secret.0
     );
+}
+
+#[rstest]
+#[case::g1(Bls12381G1Impl)]
+#[case::g2(Bls12381G2Impl)]
+fn elgamal_caller_rng_is_reproducible<C: BlsSignatureImpl + PartialEq + Eq + std::fmt::Debug>(
+    #[case] _c: C,
+) {
+    let recipient = SecretKey::<C>::from_hash(b"recipient");
+    let message = SecretKey::<C>::from_hash(b"message");
+    let public_key = recipient.public_key();
+
+    let ciphertext_a = public_key
+        .encrypt_key_el_gamal_with_rng(&message, ChaCha20Rng::from_seed([7; 32]))
+        .unwrap();
+    let ciphertext_b = public_key
+        .encrypt_key_el_gamal_with_rng(&message, ChaCha20Rng::from_seed([7; 32]))
+        .unwrap();
+    assert_eq!(ciphertext_a, ciphertext_b);
+
+    let proof_a = public_key
+        .encrypt_key_el_gamal_with_proof_and_rng(&message, ChaCha20Rng::from_seed([9; 32]))
+        .unwrap();
+    let proof_b = public_key
+        .encrypt_key_el_gamal_with_proof_and_rng(&message, ChaCha20Rng::from_seed([9; 32]))
+        .unwrap();
+    assert_eq!(proof_a, proof_b);
+}
+
+#[rstest]
+#[case::g1(Bls12381G1Impl)]
+#[case::g2(Bls12381G2Impl)]
+fn message_encryption_caller_rng_is_reproducible<
+    C: BlsSignatureImpl + PartialEq + Eq + std::fmt::Debug,
+>(
+    #[case] _c: C,
+) {
+    let public_key = SecretKey::<C>::from_hash(b"recipient").public_key();
+
+    let signcrypt_a = public_key.sign_crypt_with_rng(
+        SignatureSchemes::Basic,
+        TEST_MSG,
+        ChaCha20Rng::from_seed([11; 32]),
+    );
+    let signcrypt_b = public_key.sign_crypt_with_rng(
+        SignatureSchemes::Basic,
+        TEST_MSG,
+        ChaCha20Rng::from_seed([11; 32]),
+    );
+    assert_eq!(signcrypt_a, signcrypt_b);
+    assert_eq!(signcrypt_a.scheme(), SignatureSchemes::Basic);
+
+    let time_lock_a = public_key
+        .encrypt_time_lock_with_rng(
+            SignatureSchemes::Basic,
+            TEST_MSG,
+            TEST_ID,
+            ChaCha20Rng::from_seed([13; 32]),
+        )
+        .unwrap();
+    let time_lock_b = public_key
+        .encrypt_time_lock_with_rng(
+            SignatureSchemes::Basic,
+            TEST_MSG,
+            TEST_ID,
+            ChaCha20Rng::from_seed([13; 32]),
+        )
+        .unwrap();
+    assert_eq!(time_lock_a, time_lock_b);
+    assert_eq!(time_lock_a.scheme(), SignatureSchemes::Basic);
 }
