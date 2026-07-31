@@ -2,20 +2,33 @@ use super::*;
 use crate::helpers::*;
 use crate::impls::inner_types::*;
 use crate::{BlsError, BlsResult};
+use rand::CryptoRng;
 use rand::RngExt;
-use rand_core::CryptoRng;
 use subtle::{Choice, ConditionallySelectable, CtOption};
 use vsss_rs::*;
 
-/// Methods for implementing signcryption.
-/// as described in
+/// Named components produced when sealing a signcryption ciphertext.
+///
+/// This replaces the three-value `(U, V, W)` return tuple used before version 4.
+pub struct SignCryptCiphertextParts<P, S> {
+    /// The ephemeral public-key component.
+    pub u: P,
+    /// The encrypted message component.
+    pub v: Vec<u8>,
+    /// The signature component.
+    pub w: S,
+}
+
+/// Methods for implementing signcryption as described in
 /// <https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.119.1717&rep=rep1&type=pdf>
 pub trait BlsSignCrypt:
     Pairing
     + HashToPoint<Output = Self::Signature>
     + HashToScalar<Output = <Self::Signature as Group>::Scalar>
 {
-    /// Create a new ciphertext
+    /// Create a new ciphertext.
+    ///
+    /// Returns the `U`, `V`, and `W` components as [`SignCryptCiphertextParts`].
     /// The math is as follows
     ///
     /// 1. r ← Zq
@@ -24,25 +37,25 @@ pub trait BlsSignCrypt:
     /// 4. V = HℓX(G) ⊕ M
     /// 5. W = HG(U || V)^r
     ///
-    /// The ciphertext is (U, V, W)
-    /// where U is in the signature group
-    /// V is the encrypted message
-    /// W is the in the public key group
+    /// The ciphertext has components U, V, and W, where U is in the public-key
+    /// group, V is the encrypted message, and W is in the signature group.
     fn seal<B: AsRef<[u8]>>(
         pk: Self::PublicKey,
         message: B,
         dst: &[u8],
-    ) -> (Self::PublicKey, Vec<u8>, Self::Signature) {
+    ) -> SignCryptCiphertextParts<Self::PublicKey, Self::Signature> {
         Self::seal_with_rng(pk, message, dst, get_crypto_rng())
     }
 
     /// Create a new ciphertext using a caller-provided random number generator.
+    ///
+    /// Returns the `U`, `V`, and `W` components as [`SignCryptCiphertextParts`].
     fn seal_with_rng<B: AsRef<[u8]>>(
         pk: Self::PublicKey,
         message: B,
         dst: &[u8],
         mut rng: impl CryptoRng,
-    ) -> (Self::PublicKey, Vec<u8>, Self::Signature) {
+    ) -> SignCryptCiphertextParts<Self::PublicKey, Self::Signature> {
         const SALT: &[u8] = b"SIGNCRYPT_BLS12381_XOF:HKDF-SHA2-256_";
         let message = message.as_ref();
 
@@ -58,14 +71,14 @@ pub trait BlsSignCrypt:
         // W = HG(U′ || V)^r
         let w = Self::compute_w(u, v.as_slice(), dst) * r;
         debug_assert_eq!(w.is_identity().unwrap_u8(), 0u8);
-        (u, v, w)
+        SignCryptCiphertextParts { u, v, w }
     }
 
-    /// Check if the ciphertext is valid
+    /// Check whether the ciphertext is valid.
     ///
     /// The math is as follows
     /// 1. Compute W' = HG(U || V)
-    /// 2. Check no inputs are the infinity point
+    /// 2. Check that no inputs are the point at infinity
     /// 3. Check if e(W, P) = e(W', U)
     fn valid(u: Self::PublicKey, v: &[u8], w: Self::Signature, dst: &[u8]) -> Choice {
         let w_tick = Self::compute_w(u, v, dst);
@@ -77,12 +90,12 @@ pub trait BlsSignCrypt:
         pair_result.is_identity() & !u.is_identity() & !w.is_identity()
     }
 
-    /// Open a ciphertext if the secret can verify the signature
+    /// Open a ciphertext if the secret can verify the signature.
     ///
     /// The steps are
     /// 1. Verify the ciphertext is valid
     /// 2. G = U^sk
-    /// 4. m = HℓX(G) ⊕ V
+    /// 3. m = HℓX(G) ⊕ V
     fn unseal(
         u: Self::PublicKey,
         v: &[u8],
@@ -111,7 +124,7 @@ pub trait BlsSignCrypt:
         shares: &[Self::PublicKeyShare],
         dst: &[u8],
     ) -> CtOption<Vec<u8>> {
-        // Minimum number of shares is 2, otherwise why use threshold
+        // The minimum number of shares is two; otherwise, threshold encryption is unnecessary.
         if shares.len() < 2 {
             return CtOption::new(vec![], 0u8.into());
         }
@@ -158,7 +171,7 @@ pub trait BlsSignCrypt:
         }
         if u.is_identity().into() {
             return Err(BlsError::InvalidInputs(
-                "invalid ciphertext. Contains an identity point".to_string(),
+                "ciphertext contains an identity point".to_string(),
             ));
         }
         let sig = u * sk.0;
@@ -168,11 +181,11 @@ pub trait BlsSignCrypt:
         Ok(sig_share)
     }
 
-    /// Verify a decryption share using a public key share and ciphertext
+    /// Verify a decryption share using a public key share and ciphertext.
     ///
     /// The math is as follows
     /// 1. Compute W' = HG(U || V)
-    /// 2. Check no inputs are the infinity point
+    /// 2. Check that no inputs are the point at infinity
     /// 3. Check if e(W', K') = e(W, K)
     fn verify_share(
         share: Self::PublicKey,

@@ -3,8 +3,7 @@ use crate::{
     Bls12381, BlsSignatureBasic, BlsSignatureImpl, BlsSignatureMessageAugmentation,
     BlsSignaturePop, Pairing, SignatureSchemes,
 };
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
+use rand::{SeedableRng, rngs::StdRng};
 use shake::{ExtendableOutput, Shake128, Update, XofReader};
 use subtle::{Choice, CtOption};
 
@@ -52,17 +51,18 @@ pub fn shake128_xor(seed: &[u8], input: &[u8]) -> Vec<u8> {
 }
 
 pub fn encode_message_with_len(message: &[u8], min_len: usize) -> Vec<u8> {
-    let overhead = uint_zigzag::Uint::from(message.len());
-    let mut encoded = overhead.to_vec();
+    let mut buffer = unsigned_varint::encode::usize_buffer();
+    let prefix = unsigned_varint::encode::usize(message.len(), &mut buffer);
+    let mut encoded = Vec::with_capacity(prefix.len() + message.len());
+    encoded.extend_from_slice(prefix);
     encoded.extend_from_slice(message);
     encoded.resize(encoded.len().max(min_len), 0u8);
     encoded
 }
 
 pub fn decode_message_with_len(encoded: &[u8]) -> Option<Vec<u8>> {
-    let overhead = uint_zigzag::Uint::peek(encoded)?;
-    let prefix = encoded.get(..overhead)?;
-    let len = uint_zigzag::Uint::try_from(prefix).ok()?.0 as usize;
+    let (len, remaining) = unsigned_varint::decode::usize(encoded).ok()?;
+    let overhead = encoded.len().checked_sub(remaining.len())?;
     let end = overhead.checked_add(len)?;
     encoded.get(overhead..end).map(<[u8]>::to_vec)
 }
@@ -75,8 +75,8 @@ pub fn typed_bytes(t: Bls12381, value: impl AsRef<[u8]>) -> Vec<u8> {
     output
 }
 
-pub fn get_crypto_rng() -> ChaCha20Rng {
-    ChaCha20Rng::from_rng(&mut rand::rng())
+pub fn get_crypto_rng() -> StdRng {
+    StdRng::from_rng(&mut rand::rng())
 }
 
 pub fn signature_dst<C: BlsSignatureImpl>(scheme: SignatureSchemes) -> &'static [u8] {
@@ -195,5 +195,32 @@ mod tests {
             assert!(decode_message_with_len(&encoded[..end]).is_none());
         }
         assert_eq!(decode_message_with_len(&encoded), Some(b"message".to_vec()));
+    }
+
+    #[test]
+    fn message_length_encoding_preserves_the_wire_format() {
+        let cases = [
+            (0, &[0x00][..]),
+            (1, &[0x01][..]),
+            (127, &[0x7f][..]),
+            (128, &[0x80, 0x01][..]),
+            (16_383, &[0xff, 0x7f][..]),
+            (16_384, &[0x80, 0x80, 0x01][..]),
+        ];
+
+        for (message_len, expected_prefix) in cases {
+            let message = vec![42; message_len];
+            let encoded = encode_message_with_len(&message, 0);
+            assert_eq!(&encoded[..expected_prefix.len()], expected_prefix);
+            assert_eq!(decode_message_with_len(&encoded), Some(message));
+        }
+    }
+
+    #[test]
+    fn message_length_decoding_rejects_noncanonical_and_overflowing_prefixes() {
+        assert!(decode_message_with_len(&[0x80, 0x00]).is_none());
+
+        let overflowing = vec![0xff; unsigned_varint::encode::usize_buffer().len() + 1];
+        assert!(decode_message_with_len(&overflowing).is_none());
     }
 }

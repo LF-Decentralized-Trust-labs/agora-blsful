@@ -2,8 +2,8 @@ use crate::helpers::{KEYGEN_SALT, get_crypto_rng};
 use crate::impls::inner_types::*;
 use crate::*;
 use core::fmt::{self, Formatter};
+use rand::CryptoRng;
 use rand::RngExt;
-use rand_core::CryptoRng;
 use serde::de::{SeqAccess, Visitor};
 use subtle::CtOption;
 use vsss_rs::*;
@@ -13,11 +13,11 @@ pub const SECRET_KEY_BYTES: usize = 32;
 
 /// A BLS secret key implementation
 ///
-/// This doesn't expose the underlying curve
+/// This does not expose the underlying curve
 /// and signature scheme and can be used in situations where the specific
 /// implementation is not known at compile time and where trait objects
-/// are desirable but can't be used due to the lack of `Sized` trait.
-/// The downside is the type is now indicated with a byte or string
+/// are desirable but cannot be used because they lack the `Sized` trait.
+/// The downside is that the type is indicated by a byte or string
 /// for serialization and deserialization. If this is not desirable,
 /// then use [`SecretKey<C>`](struct.SecretKey.html) instead.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -252,8 +252,8 @@ impl SecretKeyEnum {
     }
 }
 
-/// The secret key is field element 0 < `x` < `r`
-/// where `r` is the curve order. See Section 4.3 in
+/// The secret key is a field element `x` where 0 < `x` < `r`
+/// and `r` is the curve order. See Section 4.3 of
 /// <https://eprint.iacr.org/2016/663.pdf>
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SecretKey<C: BlsSignatureImpl>(
@@ -336,14 +336,14 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
         scalar_from_le_bytes::<C, SECRET_KEY_BYTES>(bytes).map(Self)
     }
 
-    /// Secret share this key by creating `limit` shares where `threshold` are required
-    /// to combine back into this secret
+    /// Secret-share this key by creating `limit` shares, of which `threshold`
+    /// are required to reconstruct the secret.
     pub fn split(&self, threshold: usize, limit: usize) -> BlsResult<Vec<SecretKeyShare<C>>> {
         self.split_with_rng(threshold, limit, get_crypto_rng())
     }
 
-    /// Secret share this key by creating `limit` shares where `threshold` are required
-    /// to combine back into this secret using a specified RNG
+    /// Secret-share this key using the specified RNG by creating `limit` shares,
+    /// of which `threshold` are required to reconstruct the secret.
     pub fn split_with_rng(
         &self,
         threshold: usize,
@@ -360,7 +360,7 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
         Ok(shares)
     }
 
-    /// Reconstruct a secret from shares created from `split`
+    /// Reconstruct a secret from shares created by [`Self::split`].
     pub fn combine(shares: &[SecretKeyShare<C>]) -> BlsResult<Self> {
         if shares.len() < 2 {
             return Err(BlsError::InvalidInputs(
@@ -417,8 +417,8 @@ impl<C: BlsSignatureImpl> SecretKey<C> {
         self.sign(SignatureSchemes::ProofOfPossession, msg.as_ref())
     }
 
-    /// Create a Signcrypt decryption key where the secret key is hidden
-    /// that can decrypt ciphertext
+    /// Create a signcryption decryption key that hides the secret key and can
+    /// decrypt the ciphertext.
     pub fn sign_decryption_key<B: AsRef<[u8]>>(
         &self,
         ciphertext: &SignCryptCiphertext<C>,

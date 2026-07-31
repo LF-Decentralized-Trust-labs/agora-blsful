@@ -13,8 +13,8 @@ use core::{
     marker::PhantomData,
     str::FromStr,
 };
+use rand::CryptoRng;
 use rand::RngExt;
-use rand_core::CryptoRng;
 
 /// Types that implement BLS signatures
 pub trait BlsSignatureImpl:
@@ -85,8 +85,8 @@ pub type Bls12381G1 = BlsSignature<Bls12381G1Impl>;
 pub type Bls12381G2 = BlsSignature<Bls12381G2Impl>;
 
 /// A convenience wrapper for the two BLS signature implementations
-/// that doesn't require specifying the generics and can be used in
-/// trait object like situations.
+/// that does not require specifying the generics and can be used in
+/// trait-object-like situations.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Bls12381 {
     /// A BLS signature implementation using G1 for signatures and G2 for public keys

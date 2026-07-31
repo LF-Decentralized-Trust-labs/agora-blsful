@@ -1,9 +1,8 @@
 use crate::impls::inner_types::*;
 use crate::*;
 
-/// Represents BLS signatures on the BLS12-381 curve where
-/// Signatures are in G2 and Public Keys are in G1 or
-/// i.e. signatures are large and public keys are small
+/// Represents BLS signatures on the BLS12-381 curve with signatures in G2 and
+/// public keys in G1; that is, signatures are large and public keys are small.
 #[derive(
     Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize,
 )]
@@ -76,7 +75,7 @@ impl BlsMultiSignature for Bls12381G2Impl {}
 
 impl BlsSignatureImpl for Bls12381G2Impl {}
 
-/// The BLS12381 G1 hash to public key group
+/// The BLS12-381 G2 implementation's hasher for the G1 public-key group.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct Bls12381G2Hasher;
 

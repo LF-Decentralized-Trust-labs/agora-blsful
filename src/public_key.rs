@@ -1,6 +1,6 @@
 use crate::impls::inner_types::*;
 use crate::*;
-use rand_core::CryptoRng;
+use rand::CryptoRng;
 
 /// A public key for either supported BLS12-381 signature group.
 ///
@@ -75,7 +75,7 @@ impl PublicKeyEnum {
         }
     }
 
-    /// Encrypt a message using time lock encryption.
+    /// Encrypt a message using time-lock encryption.
     pub fn encrypt_time_lock<B: AsRef<[u8]>, D: AsRef<[u8]>>(
         &self,
         scheme: SignatureSchemes,
@@ -178,7 +178,7 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for PublicKey<C> {
 }
 
 impl<C: BlsSignatureImpl> PublicKey<C> {
-    /// Encrypt a message using signcryption
+    /// Encrypt a message using signcryption.
     pub fn sign_crypt<B: AsRef<[u8]>>(
         &self,
         scheme: SignatureSchemes,
@@ -195,11 +195,16 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
         rng: impl CryptoRng,
     ) -> SignCryptCiphertext<C> {
         let dst = signature_dst::<C>(scheme);
-        let (u, v, w) = <C as BlsSignCrypt>::seal_with_rng(self.0, msg.as_ref(), dst, rng);
-        SignCryptCiphertext { u, v, w, scheme }
+        let parts = <C as BlsSignCrypt>::seal_with_rng(self.0, msg.as_ref(), dst, rng);
+        SignCryptCiphertext {
+            u: parts.u,
+            v: parts.v,
+            w: parts.w,
+            scheme,
+        }
     }
 
-    /// Encrypt a message using time lock encryption
+    /// Encrypt a message using time-lock encryption.
     pub fn encrypt_time_lock<B: AsRef<[u8]>, D: AsRef<[u8]>>(
         &self,
         scheme: SignatureSchemes,
@@ -218,12 +223,17 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
         rng: impl CryptoRng,
     ) -> BlsResult<TimeCryptCiphertext<C>> {
         let dst = signature_dst::<C>(scheme);
-        let (u, v, w) =
+        let parts =
             <C as BlsTimeCrypt>::seal_with_rng(self.0, msg.as_ref(), id.as_ref(), dst, rng)?;
-        Ok(TimeCryptCiphertext { u, v, w, scheme })
+        Ok(TimeCryptCiphertext {
+            u: parts.u,
+            v: parts.v,
+            w: parts.w,
+            scheme,
+        })
     }
 
-    /// Encrypt a message using ElGamal
+    /// Encrypt a message using ElGamal.
     pub fn encrypt_key_el_gamal(&self, sk: &SecretKey<C>) -> BlsResult<ElGamalCiphertext<C>> {
         self.encrypt_key_el_gamal_with_rng(sk, get_crypto_rng())
     }
@@ -238,7 +248,7 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
         Ok(ElGamalCiphertext { c1, c2 })
     }
 
-    /// Encrypt a message using ElGamal and generate a proof
+    /// Encrypt a message using ElGamal and generate a proof.
     pub fn encrypt_key_el_gamal_with_proof(&self, sk: &SecretKey<C>) -> BlsResult<ElGamalProof<C>> {
         self.encrypt_key_el_gamal_with_proof_and_rng(sk, get_crypto_rng())
     }
@@ -262,7 +272,7 @@ impl<C: BlsSignatureImpl> PublicKey<C> {
         })
     }
 
-    /// Create a public key from secret shares
+    /// Create a public key from secret shares.
     pub fn from_shares(shares: &[PublicKeyShare<C>]) -> BlsResult<Self> {
         if shares.len() < 2 {
             return Err(BlsError::InvalidInputs(

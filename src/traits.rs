@@ -1,5 +1,5 @@
-//! Implement the various function used by BLS signatures
-//! These traits are not meant for direct use since consumers
+//! Implements the various functions used by BLS signatures.
+//! These traits are not meant for direct use because consumers
 //! can use the structs in `impls`.
 
 mod elgamal;

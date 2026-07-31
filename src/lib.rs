@@ -1,8 +1,7 @@
-//! This crate implements BLS signatures according to the IETF latest draft
+//! This crate implements BLS signatures according to the latest IETF draft for
+//! the proof-of-possession cipher suite.
 //!
-//! for the Proof of Possession Cipher Suite
-//!
-//! Since BLS signatures can use either G1 or G2 fields, there are two types of
+//! Because BLS signatures can use either the G1 or G2 group, there are two types of
 //! public keys and signatures.
 #![deny(unsafe_code)]
 #![warn(

@@ -1,6 +1,6 @@
 use crate::*;
 
-/// Represents a share of a signature
+/// Represents a share of a signature.
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SignatureShare<C: BlsSignatureImpl> {
     /// The basic signature scheme
@@ -62,12 +62,12 @@ impl<C: BlsSignatureImpl> SignatureShare<C> {
         }
     }
 
-    /// Verify the signature share with the public key share
+    /// Verify the signature share with the public key share.
     pub fn verify<B: AsRef<[u8]>>(&self, pks: &PublicKeyShare<C>, msg: B) -> BlsResult<()> {
         pks.verify(self, msg)
     }
 
-    /// Determine if two signature shares were signed using the same scheme
+    /// Determine whether two signature shares were created using the same scheme.
     pub fn same_scheme(&self, other: &Self) -> bool {
         matches!(
             (self, other),
@@ -77,7 +77,7 @@ impl<C: BlsSignatureImpl> SignatureShare<C> {
         )
     }
 
-    /// Extract the inner raw representation
+    /// Extract the inner raw representation.
     pub fn as_raw_value(&self) -> &<C as Pairing>::SignatureShare {
         match self {
             Self::Basic(s) => s,

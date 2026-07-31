@@ -82,7 +82,7 @@ impl SignatureEnum {
     }
 }
 
-/// A BLS signature wrapped in the appropriate scheme used to generate it
+/// A BLS signature wrapped in the scheme used to generate it.
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Signature<C: BlsSignatureImpl> {
     /// The basic signature scheme
@@ -152,7 +152,7 @@ impl<C: BlsSignatureImpl> Signature<C> {
         }
     }
 
-    /// Determine if two signature were signed using the same scheme
+    /// Determine whether two signatures were created using the same scheme.
     pub fn same_scheme(&self, &other: &Self) -> bool {
         matches!(
             (self, other),
@@ -162,7 +162,7 @@ impl<C: BlsSignatureImpl> Signature<C> {
         )
     }
 
-    /// Create a signature from shares
+    /// Create a signature from shares.
     pub fn from_shares(shares: &[SignatureShare<C>]) -> BlsResult<Self> {
         if shares.len() < 2 {
             return Err(BlsError::InvalidInputs(
@@ -187,7 +187,7 @@ impl<C: BlsSignatureImpl> Signature<C> {
         }
     }
 
-    /// Extract the inner raw representation
+    /// Extract the inner raw representation.
     pub fn as_raw_value(&self) -> &<C as Pairing>::Signature {
         match self {
             Self::Basic(s) => s,

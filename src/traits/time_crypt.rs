@@ -2,37 +2,53 @@ use crate::helpers::*;
 use crate::impls::inner_types::*;
 use crate::traits::{HashToPoint, HashToScalar, Pairing};
 use crate::*;
+use rand::CryptoRng;
 use rand::RngExt;
-use rand_core::CryptoRng;
 use sha2::{Digest, Sha256};
 use subtle::CtOption;
 
 const SALT: &[u8] = b"TIMELOCK_BLS12381_XOF:HKDF-SHA2-256_";
 
-/// Implement time lock encryption
+/// Named components produced when sealing a time-lock ciphertext.
+///
+/// This replaces the three-value `(U, V, W)` return tuple used before version 4.
+pub struct TimeCryptCiphertextParts<P> {
+    /// The ephemeral public-key component.
+    pub u: P,
+    /// The encrypted scalar component.
+    pub v: [u8; 32],
+    /// The encrypted message component.
+    pub w: Vec<u8>,
+}
+
+/// Implements time-lock encryption.
 pub trait BlsTimeCrypt:
     Pairing
     + HashToPoint<Output = Self::Signature>
     + HashToScalar<Output = <Self::Signature as Group>::Scalar>
 {
-    /// Create a new ciphertext
+    /// Create a new ciphertext.
+    ///
+    /// Returns the `U`, `V`, and `W` components as [`TimeCryptCiphertextParts`].
     fn seal(
         pk: Self::PublicKey,
         message: &[u8],
         id: &[u8],
         dst: &[u8],
-    ) -> BlsResult<(Self::PublicKey, [u8; 32], Vec<u8>)> {
+    ) -> BlsResult<TimeCryptCiphertextParts<Self::PublicKey>> {
         Self::seal_with_rng(pk, message, id, dst, get_crypto_rng())
     }
 
     /// Create a new ciphertext using a caller-provided random number generator.
+    ///
+    /// Returns the `U`, `V`, and `W` components as [`TimeCryptCiphertextParts`].
     fn seal_with_rng(
         pk: Self::PublicKey,
         message: &[u8],
         id: &[u8],
         dst: &[u8],
         mut rng: impl CryptoRng,
-    ) -> BlsResult<(Self::PublicKey, [u8; 32], Vec<u8>)> {
+    ) -> BlsResult<TimeCryptCiphertextParts<Self::PublicKey>> {
         if pk.is_identity().into() {
             return Err(BlsError::InvalidInputs(
                 "public key is the identity point".to_string(),
@@ -68,7 +84,7 @@ pub trait BlsTimeCrypt:
         let overhead_bytes = encode_message_with_len(message, 32);
         let w = Self::compute_w(alpha.to_repr().as_ref(), overhead_bytes.as_slice());
 
-        Ok((u, v, w))
+        Ok(TimeCryptCiphertextParts { u, v, w })
     }
 
     /// Open a ciphertext if the secret can verify the signature

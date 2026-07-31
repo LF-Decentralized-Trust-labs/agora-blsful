@@ -1,7 +1,7 @@
 use super::*;
 use crate::impls::inner_types::*;
 use crate::{BlsError, BlsResult};
-use rand_core::CryptoRng;
+use rand::CryptoRng;
 
 const SALT: &[u8] = b"ELGAMAL_BLS12381_XOF:HKDF-SHA2-256_";
 
@@ -28,8 +28,7 @@ pub struct ElGamalProofData<G: Group> {
     pub challenge: G::Scalar,
 }
 
-/// The methods for implementing ElGamal encryption
-/// and derived ZKPs
+/// Methods for implementing ElGamal encryption and derived zero-knowledge proofs.
 pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>::Scalar> {
     /// The hash to public key group DST
     const ENC_DST: &'static [u8];
@@ -57,7 +56,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
 
         if (generator.is_identity() | pk.is_identity()).into() {
             return Err(BlsError::InvalidInputs(
-                "Generator or public key is identity point".to_string(),
+                "generator or public key is the identity point".to_string(),
             ));
         }
 
@@ -83,7 +82,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
     ) -> BlsResult<(Self::PublicKey, Self::PublicKey)> {
         if pk.is_identity().into() {
             return Err(BlsError::InvalidInputs(
-                "Generator or public key is identity point".to_string(),
+                "public key is the identity point".to_string(),
             ));
         }
         let blinder = blinder.unwrap_or_else(|| random_nonzero(&mut rng));
@@ -155,10 +154,10 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         })
     }
 
-    /// Decrypt an ElGamal ciphertext and return the resulting point
+    /// Decrypt an ElGamal ciphertext and return the resulting point.
     ///
-    /// If a scalar was encrypted, the value is in the exponent
-    /// If a point was encrypted, the actual value is the result
+    /// If a scalar was encrypted, the value is in the exponent.
+    /// If a point was encrypted, the actual value is the result.
     fn decrypt(
         sk: <Self::PublicKey as Group>::Scalar,
         c1: Self::PublicKey,
@@ -167,7 +166,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         c2 - c1 * sk
     }
 
-    /// Verify an elgamal proof and decrypt the resulting point if the proof is valid
+    /// Verify an ElGamal proof and decrypt the resulting point if the proof is valid.
     fn verify_and_decrypt(
         sk: <Self::PublicKey as Group>::Scalar,
         generator: Option<Self::PublicKey>,
@@ -193,7 +192,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         Ok(Self::decrypt(sk, c1, c2))
     }
 
-    /// Verify an elgamal proof
+    /// Verify an ElGamal proof.
     fn verify_proof(
         pk: Self::PublicKey,
         generator: Option<Self::PublicKey>,
@@ -207,11 +206,11 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
         if (pk.is_identity() | generator.is_identity() | c1.is_identity() | c2.is_identity()).into()
         {
             return Err(BlsError::InvalidInputs(
-                "Parameters or ciphertext values are identity point".to_string(),
+                "parameters or ciphertext values are identity points".to_string(),
             ));
         }
         if (message_proof.is_zero() | blinder_proof.is_zero() | challenge.is_zero()).into() {
-            return Err(BlsError::InvalidInputs("Proof values are zero".to_string()));
+            return Err(BlsError::InvalidInputs("proof values are zero".to_string()));
         }
 
         let neg_challenge = -challenge;
@@ -238,7 +237,7 @@ pub trait BlsElGamal: Pairing + HashToScalar<Output = <Self::PublicKey as Group>
 
         if challenge != challenge_verifier {
             Err(BlsError::InvalidInputs(
-                "Challenge values do not match".to_string(),
+                "challenge values do not match".to_string(),
             ))
         } else {
             Ok(())

@@ -5,7 +5,7 @@
 //! stored data will no longer deserialize — that is a breaking change and
 //! must be called out in the CHANGELOG with a migration path.
 use blsful::*;
-use rand_core::{Infallible, Rng, SeedableRng, TryRng};
+use rand::{Rng, SeedableRng, TryRng, rand_core::Infallible};
 
 const TEST_MSG: &[u8] = b"wire_format_stability";
 
@@ -29,7 +29,7 @@ impl SeedableRng for MockRng {
     }
 }
 
-impl rand_core::TryCryptoRng for MockRng {}
+impl rand::TryCryptoRng for MockRng {}
 
 impl TryRng for MockRng {
     type Error = Infallible;

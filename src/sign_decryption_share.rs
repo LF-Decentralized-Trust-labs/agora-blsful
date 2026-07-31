@@ -1,13 +1,10 @@
 use crate::*;
 
-/// A public key share is point on the curve.
+/// A signcryption decryption share is a point on the curve.
 ///
-/// See Section 4.3 in
-/// <https://eprint.iacr.org/2016/663.pdf>
-/// Must be combined with other public key shares
-/// to produce the completed key, or used for
-/// creating partial signatures which can be
-/// combined into a complete signature
+/// See Section 4.3 of <https://eprint.iacr.org/2016/663.pdf>.
+/// A decryption share must be combined with other decryption shares to decrypt
+/// the ciphertext.
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignDecryptionShare<C: BlsSignatureImpl>(pub <C as Pairing>::PublicKeyShare);
 

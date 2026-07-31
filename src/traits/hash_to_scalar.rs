@@ -3,7 +3,7 @@ use core::fmt::Display;
 
 /// The hash to scalar methods
 pub trait HashToScalar {
-    /// The output scalar ground
+    /// The output scalar field.
     type Output: PrimeField + Display;
 
     /// Compute the output from a hash method

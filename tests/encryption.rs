@@ -1,6 +1,5 @@
 use blsful::*;
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
+use rand::{SeedableRng, rngs::StdRng};
 use rstest::*;
 
 const TEST_ID: &[u8] = b"super id";
@@ -234,18 +233,18 @@ fn elgamal_caller_rng_is_reproducible<C: BlsSignatureImpl + PartialEq + Eq + std
     let public_key = recipient.public_key();
 
     let ciphertext_a = public_key
-        .encrypt_key_el_gamal_with_rng(&message, ChaCha20Rng::from_seed([7; 32]))
+        .encrypt_key_el_gamal_with_rng(&message, StdRng::from_seed([7; 32]))
         .unwrap();
     let ciphertext_b = public_key
-        .encrypt_key_el_gamal_with_rng(&message, ChaCha20Rng::from_seed([7; 32]))
+        .encrypt_key_el_gamal_with_rng(&message, StdRng::from_seed([7; 32]))
         .unwrap();
     assert_eq!(ciphertext_a, ciphertext_b);
 
     let proof_a = public_key
-        .encrypt_key_el_gamal_with_proof_and_rng(&message, ChaCha20Rng::from_seed([9; 32]))
+        .encrypt_key_el_gamal_with_proof_and_rng(&message, StdRng::from_seed([9; 32]))
         .unwrap();
     let proof_b = public_key
-        .encrypt_key_el_gamal_with_proof_and_rng(&message, ChaCha20Rng::from_seed([9; 32]))
+        .encrypt_key_el_gamal_with_proof_and_rng(&message, StdRng::from_seed([9; 32]))
         .unwrap();
     assert_eq!(proof_a, proof_b);
 }
@@ -263,12 +262,12 @@ fn message_encryption_caller_rng_is_reproducible<
     let signcrypt_a = public_key.sign_crypt_with_rng(
         SignatureSchemes::Basic,
         TEST_MSG,
-        ChaCha20Rng::from_seed([11; 32]),
+        StdRng::from_seed([11; 32]),
     );
     let signcrypt_b = public_key.sign_crypt_with_rng(
         SignatureSchemes::Basic,
         TEST_MSG,
-        ChaCha20Rng::from_seed([11; 32]),
+        StdRng::from_seed([11; 32]),
     );
     assert_eq!(signcrypt_a, signcrypt_b);
     assert_eq!(signcrypt_a.scheme(), SignatureSchemes::Basic);
@@ -278,7 +277,7 @@ fn message_encryption_caller_rng_is_reproducible<
             SignatureSchemes::Basic,
             TEST_MSG,
             TEST_ID,
-            ChaCha20Rng::from_seed([13; 32]),
+            StdRng::from_seed([13; 32]),
         )
         .unwrap();
     let time_lock_b = public_key
@@ -286,7 +285,7 @@ fn message_encryption_caller_rng_is_reproducible<
             SignatureSchemes::Basic,
             TEST_MSG,
             TEST_ID,
-            ChaCha20Rng::from_seed([13; 32]),
+            StdRng::from_seed([13; 32]),
         )
         .unwrap();
     assert_eq!(time_lock_a, time_lock_b);

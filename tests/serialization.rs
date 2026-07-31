@@ -1,5 +1,5 @@
 use blsful::*;
-use rand_core::{Infallible, Rng, SeedableRng, TryRng};
+use rand::{Rng, SeedableRng, TryRng, rand_core::Infallible};
 use rstest::*;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -15,7 +15,7 @@ impl SeedableRng for MockRng {
     }
 }
 
-impl rand_core::TryCryptoRng for MockRng {}
+impl rand::TryCryptoRng for MockRng {}
 
 impl TryRng for MockRng {
     type Error = Infallible;

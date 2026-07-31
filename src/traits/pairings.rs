@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 use subtle::ConditionallySelectable;
 use vsss_rs::*;
 
-/// Operations that support pairing trait
+/// Operations that support pairings.
 pub trait Pairing {
     /// The secret key share
     type SecretKeyShare: Share<

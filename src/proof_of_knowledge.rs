@@ -1,7 +1,7 @@
 use crate::*;
 use subtle::Choice;
 
-/// A signature proof of knowledge
+/// A signature proof of knowledge.
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ProofOfKnowledge<C: BlsSignatureImpl> {
     /// The basic signature scheme
@@ -140,7 +140,7 @@ impl<C: BlsSignatureImpl> ProofOfKnowledge<C> {
         }
     }
 
-    /// Verify the proof of knowledge
+    /// Verify the proof of knowledge.
     pub fn verify<B: AsRef<[u8]>>(
         &self,
         pk: &PublicKey<C>,
@@ -176,16 +176,16 @@ impl<C: BlsSignatureImpl> ProofOfKnowledge<C> {
     }
 }
 
-/// A signature proof of knowledge based on a timestamp
+/// A timestamp-based signature proof of knowledge.
 #[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ProofOfKnowledgeTimestamp<C: BlsSignatureImpl> {
-    /// The inner proof of knowledge
+    /// The inner proof of knowledge.
     #[serde(bound(
         serialize = "ProofOfKnowledge<C>: serde::Serialize",
         deserialize = "ProofOfKnowledge<C>: serde::Deserialize<'de>"
     ))]
     pub proof: ProofOfKnowledge<C>,
-    /// The timestamp associated with the proof
+    /// The timestamp associated with the proof.
     pub timestamp: u64,
 }
 
@@ -267,36 +267,45 @@ impl<C: BlsSignatureImpl> ProofOfKnowledgeTimestamp<C> {
     pub fn generate<B: AsRef<[u8]>>(msg: B, signature: Signature<C>) -> BlsResult<Self> {
         match signature {
             Signature::Basic(s) => {
-                let (u, v, timestamp) = <C as BlsSignatureProof>::generate_timestamp_proof(
+                let parts = <C as BlsSignatureProof>::generate_timestamp_proof(
                     msg,
                     <C as BlsSignatureBasic>::DST,
                     s,
                 )?;
                 Ok(Self {
-                    proof: ProofOfKnowledge::Basic { u, v },
-                    timestamp,
+                    proof: ProofOfKnowledge::Basic {
+                        u: parts.u,
+                        v: parts.v,
+                    },
+                    timestamp: parts.timestamp,
                 })
             }
             Signature::MessageAugmentation(s) => {
-                let (u, v, timestamp) = <C as BlsSignatureProof>::generate_timestamp_proof(
+                let parts = <C as BlsSignatureProof>::generate_timestamp_proof(
                     msg,
                     <C as BlsSignatureMessageAugmentation>::DST,
                     s,
                 )?;
                 Ok(Self {
-                    proof: ProofOfKnowledge::MessageAugmentation { u, v },
-                    timestamp,
+                    proof: ProofOfKnowledge::MessageAugmentation {
+                        u: parts.u,
+                        v: parts.v,
+                    },
+                    timestamp: parts.timestamp,
                 })
             }
             Signature::ProofOfPossession(s) => {
-                let (u, v, timestamp) = <C as BlsSignatureProof>::generate_timestamp_proof(
+                let parts = <C as BlsSignatureProof>::generate_timestamp_proof(
                     msg,
                     <C as BlsSignaturePop>::SIG_DST,
                     s,
                 )?;
                 Ok(Self {
-                    proof: ProofOfKnowledge::ProofOfPossession { u, v },
-                    timestamp,
+                    proof: ProofOfKnowledge::ProofOfPossession {
+                        u: parts.u,
+                        v: parts.v,
+                    },
+                    timestamp: parts.timestamp,
                 })
             }
         }

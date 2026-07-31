@@ -3,9 +3,8 @@ use crate::*;
 use serde::{Deserialize, Serialize};
 use vsss_rs::*;
 
-/// Represents BLS signatures on the BLS12-381 curve where
-/// Signatures are in G1 and Public Keys are in G2 or
-/// i.e. signatures are small and public keys are large
+/// Represents BLS signatures on the BLS12-381 curve with signatures in G1 and
+/// public keys in G2; that is, signatures are small and public keys are large.
 #[derive(
     Copy, Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize,
 )]
@@ -78,7 +77,7 @@ impl BlsMultiSignature for Bls12381G1Impl {}
 
 impl BlsSignatureImpl for Bls12381G1Impl {}
 
-/// The BLS12381 G1 hash to public key group
+/// The BLS12-381 G1 implementation's hasher for the G2 public-key group.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct Bls12381G1Hasher;
 

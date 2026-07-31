@@ -1,24 +1,24 @@
 use crate::impls::inner_types::*;
 use crate::*;
 
-/// A Discrete Log Proof tied to a specific ElGamal ciphertext
+/// A discrete logarithm proof tied to a specific ElGamal ciphertext.
 #[derive(Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ElGamalProof<C: BlsSignatureImpl> {
-    /// The el-gamal ciphertext
+    /// The ElGamal ciphertext.
     #[serde(bound(
         serialize = "ElGamalCiphertext<C>: Serialize",
         deserialize = "ElGamalCiphertext<C>: Deserialize<'de>"
     ))]
     pub ciphertext: ElGamalCiphertext<C>,
-    /// The proof of encrypted message
+    /// The proof of the encrypted message.
     #[serde(serialize_with = "traits::scalar::serialize::<C, _>")]
     #[serde(deserialize_with = "traits::scalar::deserialize::<C, _>")]
     pub message_proof: <<C as Pairing>::PublicKey as Group>::Scalar,
-    /// The proof of the blinder
+    /// The proof of the blinder.
     #[serde(serialize_with = "traits::scalar::serialize::<C, _>")]
     #[serde(deserialize_with = "traits::scalar::deserialize::<C, _>")]
     pub blinder_proof: <<C as Pairing>::PublicKey as Group>::Scalar,
-    /// The fiat-shamir heuristic challenge
+    /// The Fiat-Shamir heuristic challenge.
     #[serde(serialize_with = "traits::scalar::serialize::<C, _>")]
     #[serde(deserialize_with = "traits::scalar::deserialize::<C, _>")]
     pub challenge: <<C as Pairing>::PublicKey as Group>::Scalar,
@@ -85,7 +85,7 @@ impl<C: BlsSignatureImpl> ElGamalProof<C> {
         )
     }
 
-    /// Verify the proof and ciphertext then decrypt
+    /// Verify the proof and ciphertext, then decrypt the ciphertext.
     pub fn verify_and_decrypt(&self, sk: &SecretKey<C>) -> BlsResult<<C as Pairing>::PublicKey> {
         <C as BlsElGamal>::verify_and_decrypt(
             sk.0,

@@ -103,7 +103,7 @@ impl<C: BlsSignatureImpl> SignCryptCiphertext<C> {
         self.scheme
     }
 
-    /// Create a decryption share from a secret key share
+    /// Create a decryption share from a secret key share.
     pub fn create_decryption_share(
         &self,
         sks: &SecretKeyShare<C>,
@@ -124,14 +124,14 @@ impl<C: BlsSignatureImpl> SignCryptCiphertext<C> {
         <C as BlsSignCrypt>::unseal_with_shares(self.u, &self.v, self.w, shares.as_slice(), dst)
     }
 
-    /// Decrypt the signcrypt ciphertext
+    /// Decrypt the signcryption ciphertext.
     pub fn decrypt(&self, sk: &SecretKey<C>) -> CtOption<Vec<u8>> {
         let dst = signature_dst::<C>(self.scheme);
 
         <C as BlsSignCrypt>::unseal(self.u, &self.v, self.w, &sk.0, dst)
     }
 
-    /// Check if the ciphertext is valid
+    /// Check whether the ciphertext is valid.
     pub fn is_valid(&self) -> Choice {
         <C as BlsSignCrypt>::valid(self.u, &self.v, self.w, signature_dst::<C>(self.scheme))
     }

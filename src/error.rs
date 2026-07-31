@@ -15,7 +15,7 @@ pub enum BlsError {
     /// The proof was invalid
     #[error("invalid proof")]
     InvalidProof,
-    /// The signature schemes don't match
+    /// The signature schemes do not match.
     #[error("invalid signature scheme")]
     InvalidSignatureScheme,
     /// The decryption share is invalid

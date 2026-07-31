@@ -1,8 +1,7 @@
 use crate::*;
 
-/// A public key share is a point on the curve
-/// Must be combined with other public key shares
-/// in order to decrypt a ciphertext
+/// An ElGamal decryption share is a point on the curve.
+/// It must be combined with other decryption shares to decrypt a ciphertext.
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct ElGamalDecryptionShare<C: BlsSignatureImpl>(
     #[serde(serialize_with = "traits::public_key_share::serialize::<C, _>")]
@@ -41,8 +40,8 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for ElGamalDecryptionShare<C> {
 
 impl_from_derivatives_generic!(ElGamalDecryptionShare);
 
-/// An ElGamal decryption key where the secret key is hidden or combined from shares
-/// that can decrypt ciphertext
+/// An ElGamal decryption key, derived from a hidden secret key or combined
+/// shares, that can decrypt ciphertexts.
 #[derive(Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ElGamalDecryptionKey<C: BlsSignatureImpl>(
     #[serde(serialize_with = "traits::public_key::serialize::<C, _>")]

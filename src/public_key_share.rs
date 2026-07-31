@@ -1,13 +1,12 @@
 use crate::*;
 use subtle::Choice;
 
-/// A public key share is point on the curve.
+/// A public key share is a point on the curve.
 ///
-/// See Section 4.3 in <https://eprint.iacr.org/2016/663.pdf>
-/// Must be combined with other public key shares
-/// to produce the completed key, or used for
-/// creating partial signatures which can be
-/// combined into a complete signature
+/// See Section 4.3 of <https://eprint.iacr.org/2016/663.pdf>.
+/// A public key share must be combined with other public key shares to produce
+/// the complete key, or it can be used to create partial signatures that can
+/// be combined into a complete signature.
 #[derive(Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PublicKeyShare<C: BlsSignatureImpl>(pub <C as Pairing>::PublicKeyShare);
 
@@ -53,7 +52,7 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for PublicKeyShare<C> {
 }
 
 impl<C: BlsSignatureImpl> PublicKeyShare<C> {
-    /// Verify the signature share with the public key share
+    /// Verify the signature share with the public key share.
     pub fn verify<B: AsRef<[u8]>>(&self, sig: &SignatureShare<C>, msg: B) -> BlsResult<()> {
         if self.0.identifier() != sig.as_raw_value().identifier() {
             return Err(BlsError::InvalidInputs(
