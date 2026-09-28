@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v4.1.0 - 2026-09-28
+
+- Allow `AggregateSignature::from_signatures` and
+  `MultiSignature::from_signatures` to accept a single signature, matching the
+  `n >= 1` precondition of the BLS aggregate operation in
+  draft-irtf-cfrg-bls-signature ([#10]).
+- Allow `AggregateSignature::verify` to verify a single public key and message
+  pair and `MultiPublicKey::from_public_keys` to accept a single public key so
+  that single-signature aggregates and multi-signatures can be verified.
+- Empty signature and public key collections now return
+  `BlsError::InvalidInputs` instead of `BlsError::InvalidSignature`.
+
+[#10]: https://github.com/LF-Decentralized-Trust-labs/agora-blsful/issues/10
+
 ## v4.0.0 - 2026-07-31
 
 - Add scheme-specific `sign_basic`, `sign_augmented`, and `sign_pop` convenience methods.

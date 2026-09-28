@@ -35,8 +35,10 @@ impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for MultiSignature<C> {
     type Error = BlsError;
 
     fn try_from(sigs: &[Signature<C>]) -> Result<Self, Self::Error> {
-        if sigs.len() < 2 {
-            return Err(BlsError::InvalidSignature);
+        if sigs.is_empty() {
+            return Err(BlsError::InvalidInputs(
+                "at least one signature is required".to_string(),
+            ));
         }
         let first = &sigs[0];
         if matches!(first, Signature::MessageAugmentation(_)) {
@@ -105,7 +107,10 @@ impl<C: BlsSignatureImpl> MultiSignature<C> {
         }
     }
 
-    /// Accumulate multiple signatures into a single signature
+    /// Accumulate one or more signatures into a single signature.
+    ///
+    /// A single signature is accepted and yields a multi-signature equal to
+    /// that signature.
     pub fn from_signatures<B: AsRef<[Signature<C>]>>(signatures: B) -> BlsResult<Self> {
         Self::try_from(signatures.as_ref())
     }
