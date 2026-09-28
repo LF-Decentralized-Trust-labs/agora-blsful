@@ -36,8 +36,10 @@ impl<C: BlsSignatureImpl> TryFrom<&[Signature<C>]> for AggregateSignature<C> {
     type Error = BlsError;
 
     fn try_from(sigs: &[Signature<C>]) -> Result<Self, Self::Error> {
-        if sigs.len() < 2 {
-            return Err(BlsError::InvalidSignature);
+        if sigs.is_empty() {
+            return Err(BlsError::InvalidInputs(
+                "at least one signature is required".to_string(),
+            ));
         }
         let first = &sigs[0];
         let mut aggregate = *first.as_raw_value();
@@ -83,7 +85,11 @@ impl<C: BlsSignatureImpl> AggregateSignature<C> {
         }
     }
 
-    /// Accumulate multiple signatures into one aggregate signature.
+    /// Accumulate one or more signatures into one aggregate signature.
+    ///
+    /// A single signature is accepted and yields an aggregate equal to that
+    /// signature, matching the `n >= 1` precondition of the BLS aggregate
+    /// operation in draft-irtf-cfrg-bls-signature.
     pub fn from_signatures<B: AsRef<[Signature<C>]>>(signatures: B) -> BlsResult<Self> {
         Self::try_from(signatures.as_ref())
     }
@@ -93,9 +99,9 @@ impl<C: BlsSignatureImpl> AggregateSignature<C> {
     /// Basic-scheme verification rejects duplicate messages as required by that
     /// ciphersuite. Message Augmentation and Proof of Possession permit them.
     pub fn verify<B: AsRef<[u8]>>(&self, data: &[(PublicKey<C>, B)]) -> BlsResult<()> {
-        if data.len() < 2 {
+        if data.is_empty() {
             return Err(BlsError::InvalidInputs(
-                "at least two public key and message pairs are required".to_string(),
+                "at least one public key and message pair is required".to_string(),
             ));
         }
         match self {

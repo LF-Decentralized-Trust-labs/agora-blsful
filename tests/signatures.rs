@@ -133,7 +133,7 @@ fn multisigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
     let pk3 = sk3.public_key();
 
     assert!(MultiPublicKey::<C>::from_public_keys([]).is_err());
-    assert!(MultiPublicKey::from_public_keys([pk1]).is_err());
+    assert!(MultiSignature::<C>::from_signatures([]).is_err());
 
     let sig1 = sk1
         .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
@@ -163,6 +163,35 @@ fn multisigs_work<C: BlsSignatureImpl>(#[case] _c: C) {
         .unwrap();
     let res = MultiSignature::from_signatures([sig1, sig2, sig3, bad_sig]);
     assert!(res.is_err());
+}
+
+#[rstest]
+#[case::g1(Bls12381G1Impl)]
+#[case::g2(Bls12381G2Impl)]
+fn single_multi_signature_works<C: BlsSignatureImpl>(#[case] _c: C) {
+    let sk1 = SecretKey::<C>::new();
+    let sk2 = SecretKey::<C>::new();
+    let pk1 = sk1.public_key();
+    let pk2 = sk2.public_key();
+
+    let sig1 = sk1
+        .sign(SignatureSchemes::ProofOfPossession, TEST_MSG)
+        .unwrap();
+
+    let msig = MultiSignature::from_signatures([sig1]).unwrap();
+    assert_eq!(msig.as_raw_value(), sig1.as_raw_value());
+
+    let mpk = MultiPublicKey::from_public_keys([pk1]).unwrap();
+    assert!(msig.verify(&mpk, TEST_MSG).is_ok());
+    assert!(msig.verify(&mpk, b"other message").is_err());
+
+    let wrong_mpk = MultiPublicKey::from_public_keys([pk2]).unwrap();
+    assert!(msig.verify(&wrong_mpk, TEST_MSG).is_err());
+
+    let aug_sig = sk1
+        .sign(SignatureSchemes::MessageAugmentation, TEST_MSG)
+        .unwrap();
+    assert!(MultiSignature::from_signatures([aug_sig]).is_err());
 }
 
 #[rstest]
@@ -226,4 +255,32 @@ fn aggregate_signatures_work<C: BlsSignatureImpl>(#[case] _c: C) {
         asig.verify(&[(pk1, TEST_MSG), (pk2, TEST_MSG), (pk3, TEST_MSG)])
             .is_ok()
     );
+}
+
+#[rstest]
+#[case::g1(Bls12381G1Impl)]
+#[case::g2(Bls12381G2Impl)]
+fn single_aggregate_signature_works<C: BlsSignatureImpl>(#[case] _c: C) {
+    let sk1 = SecretKey::<C>::new();
+    let sk2 = SecretKey::<C>::new();
+    let pk1 = sk1.public_key();
+    let pk2 = sk2.public_key();
+
+    assert!(AggregateSignature::<C>::from_signatures([]).is_err());
+
+    for scheme in [
+        SignatureSchemes::Basic,
+        SignatureSchemes::MessageAugmentation,
+        SignatureSchemes::ProofOfPossession,
+    ] {
+        let sig1 = sk1.sign(scheme, TEST_MSG).unwrap();
+        let asig = AggregateSignature::from_signatures([sig1]).unwrap();
+        assert_eq!(asig.scheme(), scheme);
+        assert_eq!(asig.to_string(), sig1.to_string());
+
+        assert!(asig.verify(&[(pk1, TEST_MSG)]).is_ok());
+        assert!(asig.verify(&[(pk1, b"other message")]).is_err());
+        assert!(asig.verify(&[(pk2, TEST_MSG)]).is_err());
+        assert!(asig.verify::<&[u8]>(&[]).is_err());
+    }
 }

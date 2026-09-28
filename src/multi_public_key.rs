@@ -77,12 +77,15 @@ impl<C: BlsSignatureImpl> TryFrom<&[u8]> for MultiPublicKey<C> {
 }
 
 impl<C: BlsSignatureImpl> MultiPublicKey<C> {
-    /// Accumulate multiple public keys into a single public key
+    /// Accumulate one or more public keys into a single public key.
+    ///
+    /// A single key is accepted so that a multi-signature built from a single
+    /// signature can be verified.
     pub fn from_public_keys<B: AsRef<[PublicKey<C>]>>(keys: B) -> BlsResult<Self> {
         let keys = keys.as_ref();
-        if keys.len() < 2 {
+        if keys.is_empty() {
             return Err(BlsError::InvalidInputs(
-                "at least two public keys are required".to_string(),
+                "at least one public key is required".to_string(),
             ));
         }
         Ok(Self(<C as BlsMultiKey>::from_public_keys(
