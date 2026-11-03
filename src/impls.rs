@@ -193,9 +193,6 @@ pub mod inner_types {
     pub use bls12_381_plus::{
         Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
         G1Projective, G2Affine, G2Prepared, G2Projective, Gt, MillerLoopResult, Scalar, ScalarLe,
-        elliptic_curve_013::hash2curve::{
-            ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd,
-        },
         ff::{Field, FieldBits, FromUniformBytes, PrimeField, PrimeFieldBits},
         group::{
             Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul, ScalarMulOwned,
@@ -208,9 +205,6 @@ pub mod inner_types {
         Bls12, Bls12381G1 as InnerBls12381G1, Bls12381G2 as InnerBls12381G2, G1Affine,
         G1Compressed, G1Projective, G2Affine, G2Compressed, G2Prepared, G2Projective, Gt,
         MillerLoopResult, Scalar,
-        elliptic_curve_013::hash2curve::{
-            ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd,
-        },
         ff::{Field, FieldBits, FromUniformBytes, PrimeField, PrimeFieldBits},
         group::{
             Curve, Group, GroupEncoding, GroupOps, GroupOpsOwned, ScalarMul, ScalarMulOwned,
@@ -218,4 +212,5 @@ pub mod inner_types {
         },
         multi_miller_loop, pairing,
     };
+    pub use hash2curve::{ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd};
 }

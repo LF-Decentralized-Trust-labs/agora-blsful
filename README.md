@@ -13,6 +13,22 @@ We'd like to thank [LIT Protocol](https://www.litprotocol.com/) for sponsoring t
 
 All operations are constant time unless explicitly noted.
 
+### Upgrading to 4.2
+
+Version 4.2 fixes [RUSTSEC-2026-0387](https://rustsec.org/advisories/RUSTSEC-2026-0387), a set of timing leaks in `crypto-bigint` `0.5`, by moving to `blstrs_plus` and `bls12_381_plus` `0.10`. Those releases drop `elliptic-curve` `0.13`, which was the only source of `crypto-bigint` `0.5`. Signatures, keys, and wire formats are unchanged, but a few Rust APIs changed:
+
+* `inner_types::{ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander, ExpanderXmd}` now come from `hash2curve` `0.14` instead of `elliptic-curve` `0.13`. `ExpandMsg` now takes a security-level parameter, and its expanders return `Result`.
+* Hashing with these types now needs `sha2` `0.11`. Code that used `ExpandMsgXmd<sha2::Sha256>` with `sha2` `0.10` has to move to `0.11`.
+* The curve types in `inner_types` (`Scalar`, `G1Projective`, `G2Projective`, and so on) now come from the `0.10` backends, so they don't mix with types from the `0.9` crates.
+
+Hashing directly to a curve point now looks like this:
+
+```rust
+use blsful::inner_types::{ExpandMsgXmd, G1Projective};
+
+let point = G1Projective::hash::<ExpandMsgXmd<sha2::Sha256>>(b"message", b"MY-DST");
+```
+
 ## [Documentation](https://docs.rs/blsful)
 
 BLS signatures offer the smallest known signature size, as well as other benefits such as one-round threshold signing and signature aggregation.
