@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v4.2.0 - 2026-11-03
+
+- Update `blstrs_plus` and `bls12_381_plus` to `0.10.0`, which removes
+  `crypto-bigint` `0.5` ([RUSTSEC-2026-0387]) by dropping `elliptic-curve`
+  `0.13`.
+- **`inner_types` change:** `inner_types::{ExpandMsg, ExpandMsgXmd, ExpandMsgXof, Expander,
+  ExpanderXmd}` are now re-exported from `hash2curve` `0.14` instead of
+  `elliptic-curve` `0.13`, and the `inner_types` curve types come from the
+  `0.10` backends.
+- Hash to curve with `sha2` `0.11` and remove the `sha2` `0.10` dependency.
+- Remove an unused import in the time-lock module.
+
+[RUSTSEC-2026-0387]: https://rustsec.org/advisories/RUSTSEC-2026-0387
+
 ## v4.1.0 - 2026-09-28
 
 - Allow `AggregateSignature::from_signatures` and
