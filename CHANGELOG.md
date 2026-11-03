@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `0.10` backends.
 - Hash to curve with `sha2` `0.11` and remove the `sha2` `0.10` dependency.
 - Remove an unused import in the time-lock module.
+- Bump the `noyalib` dev-dependency to `0.0.58` ([RUSTSEC-2026-0333]).
 
 [RUSTSEC-2026-0387]: https://rustsec.org/advisories/RUSTSEC-2026-0387
+[RUSTSEC-2026-0333]: https://rustsec.org/advisories/RUSTSEC-2026-0333
 
 ## v4.1.0 - 2026-09-28
 

@@ -42,7 +42,7 @@ zeroize = { version = "1", default-features = false }
 [dev-dependencies]
 ciborium = "0.2"
 hex = "0.4"
-noyalib = { version = "0.0.18", default-features = false, features = ["minimal"] }
+noyalib = { version = "0.0.58", default-features = false, features = ["minimal"] }
 postcard = { version = "1.1", default-features = false, features = ["alloc"] }
 rand_xorshift = "0.5"
 rstest = { version = "0.26", default-features = false }
